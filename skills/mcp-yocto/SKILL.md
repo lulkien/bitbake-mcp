@@ -112,12 +112,14 @@ restored, `setscene_only: true` restores without running real tasks.
   never the digest. Strings are capped (paths keep their tail, `…` marks a cut)
   and `dropped` lists what was cut for size. `digest.incomplete: true` means a
   log write failed: the missing stderr is in `digest.stderr_file`.
-- **Errors are content, not protocol failures.** Every error is
+- **Most errors are content, not protocol failures.** Tool errors are
   `{ok:false, error_code, message, elapsed_ms}` with `error_code:
   INVALID_ARGUMENT` (bad recipe name, `user@host` target, task name, a relative
   or missing `build_dir`, port 0, or a field sent with the wrong JSON type such
   as `"port": "2222"`), and the MCP result has `isError: true` whenever `ok` is
-  false. Pass `build_dir` as an absolute path and `port` as a number.
+  false. Unknown tool names return JSON-RPC error `-32602`; cancelled requests
+  return a JSON-RPC error as well. Pass `build_dir` as an absolute path and
+  `port` as a number.
 - **The first `devtool` call in a fresh build dir mutates the tree**: it creates
   a workspace layer and enables it in `conf/bblayers.conf`. `devtool_status` on
   an empty workspace answers with `ok:true` and no recipes; that is not an

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the seven execution tools over MCP stdio.
+"""Test the six execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
@@ -57,6 +57,13 @@ def check(label, cond, detail=""):
     global fail
     if not cond: fail += 1
     print(f"[{'PASS' if cond else 'FAIL'}] {label}" + (f"\n      {detail}" if detail and not cond else ""))
+
+send({"jsonrpc":"2.0","id":2,"method":"tools/call",
+      "params":{"name":"unknown_tool","arguments":{}}})
+unknown_tool_response = recv()
+check("unknown tool returns JSON-RPC -32602",
+      unknown_tool_response.get("error", {}).get("code") == -32602,
+      str(unknown_tool_response))
 
 # devtool modify
 t0 = time.monotonic()

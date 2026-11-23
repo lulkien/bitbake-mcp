@@ -247,9 +247,10 @@ package_write_ipk`) is far smaller.
 
 Flags are emitted in the order `bitbake --help` lists them, with the recipe
 last — the reported `command` mirrors a command line a human would write. Task
-values (`task`, `clear_stamp`, `runall`, `runonly`) are validated like a recipe
-name. The sstate flags have no off form, so `false` or an omitted value emits
-nothing and bitbake's own default applies.
+values (`task`, `clear_stamp`, `runall`, `runonly`) may contain only ASCII
+letters, digits, `_` and `-`, and cannot start with `-`. The sstate flags have
+no off form, so `false` or an omitted value emits nothing and bitbake's own
+default applies.
 
 The other options `bitbake` offers (`-e`, `-S`, `-g`, `-k`, `-n`, …) are not
 exposed.
@@ -270,9 +271,11 @@ target host containing `:` that is not an IPv6 literal, are rejected. A command 
 `ok: false` with an `exit_code`, its `log`, and `stderr` unless that is too long
 to inline.
 
-Errors are returned as text content (with `ok: false` and `elapsed_ms`), never
-as JSON-RPC errors, and the MCP result carries `isError: true` whenever the
-payload is `ok: false` — including a command that ran and failed.
+Tool errors are returned as text content (with `ok: false` and `elapsed_ms`),
+and the MCP result carries `isError: true` whenever the payload is `ok: false` —
+including a command that ran and failed. Two protocol-level cases return
+JSON-RPC errors instead: an unknown tool name (`-32602`) and a cancelled
+request.
 
 ## Output logs
 
