@@ -333,7 +333,6 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
- "thiserror",
  "tokio",
  "toml",
 ]
