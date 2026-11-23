@@ -15,12 +15,12 @@ pub type ValidationResult = Result<(), ValidationError>;
 /// `bitbake <recipe>` / `devtool <recipe>` commands. Rejects anything that
 /// could carry shell syntax or path traversal.
 pub fn validate_recipe_name(name: &str) -> ValidationResult {
-    // BitBake recipe names: letters, digits, underscore, hyphen, dot.
+    // BitBake recipe names: letters, digits, underscore, hyphen, dot, plus.
     // No spaces, no slashes, no shell metacharacters.
     let ok = !name.is_empty()
         && name
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '+'))
         && !name.contains("..")
         && !name.starts_with(['-', '.']);
     if ok {
@@ -30,6 +30,25 @@ pub fn validate_recipe_name(name: &str) -> ValidationResult {
             error_code: "INVALID_ARGUMENT",
             message: format!("Invalid recipe name: {name}"),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_recipe_name;
+
+    #[test]
+    fn recipe_names_accept_plus_and_existing_safe_characters() {
+        assert!(validate_recipe_name("gtk+3").is_ok());
+        assert!(validate_recipe_name("libsigc++-3").is_ok());
+        assert!(validate_recipe_name("busybox_1.36.1").is_ok());
+    }
+
+    #[test]
+    fn recipe_names_reject_shell_syntax_and_invalid_forms() {
+        for name in ["a;b", "-x", "../x", "a b", "", "name..suffix"] {
+            assert!(validate_recipe_name(name).is_err(), "accepted {name:?}");
+        }
     }
 }
 

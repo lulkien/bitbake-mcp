@@ -117,6 +117,10 @@ check("bitbake_recipe runs", r.get("ok") is True, str(r))
 check("bitbake_recipe default argv is exactly 'busybox'",
       "bitbake-args:busybox\n" in r.get("stdout",""), str(r.get("stdout")))
 
+r, _ = call("bitbake_recipe", {"recipe": "gtk+3", "build_dir": BUILD})
+check("bitbake_recipe accepts plus in recipe name",
+      r.get("ok") is True and "bitbake-args:gtk+3\n" in r.get("stdout",""), str(r))
+
 r, _ = call("bitbake_recipe", {"recipe": "busybox", "task": "compile", "build_dir": BUILD})
 check("bitbake_recipe -c <task> argv",
       "bitbake-args:-c compile busybox\n" in r.get("stdout",""), str(r.get("stdout")))
