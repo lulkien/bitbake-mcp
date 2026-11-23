@@ -11,6 +11,18 @@ pub struct ValidationError {
 
 pub type ValidationResult = Result<(), ValidationError>;
 
+/// Validate an SSH port for `devtool deploy-target`.
+pub fn validate_port(port: u16) -> ValidationResult {
+    if port == 0 {
+        Err(ValidationError {
+            error_code: "INVALID_ARGUMENT",
+            message: "Invalid port: 0".into(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
 /// Validate a recipe name (e.g. `busybox` or `busybox_1.36.1`) used in
 /// `bitbake <recipe>` / `devtool <recipe>` commands. Rejects anything that
 /// could carry shell syntax or path traversal.

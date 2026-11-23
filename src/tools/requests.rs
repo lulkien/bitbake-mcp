@@ -36,6 +36,7 @@ pub(super) struct DeployTargetReq {
     pub(super) no_check_space: Option<bool>,
     /// SSH port for the connection (`-P`), 1-65535. Defaults to 22.
     #[serde(default)]
+    #[schemars(range(min = 1))]
     pub(super) port: Option<u16>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,

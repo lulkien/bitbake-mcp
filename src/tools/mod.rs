@@ -7,7 +7,7 @@ mod handler;
 mod requests;
 
 use crate::{config, digest, exec, validation};
-use envelope::{error_result, validation_error};
+use envelope::validation_error;
 use requests::{BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolBuildReq, DevtoolResetReq, RecipeCmdReq};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -203,8 +203,10 @@ impl BitBakeServer {
     ) -> String {
         // Command: devtool deploy-target [-c] [-p] [--no-check-space]
         //          [-P <port>] [-S|--no-strip] <recipe> <target>
-        if port == Some(0) {
-            return error_result("INVALID_ARGUMENT", "Invalid port: 0".into()).to_string();
+        if let Some(port) = port {
+            if let Err(v) = validation::validate_port(port) {
+                return validation_error(&v);
+            }
         }
         if let Err(v) = validation::validate_recipe_name(&recipe) {
             return validation_error(&v);

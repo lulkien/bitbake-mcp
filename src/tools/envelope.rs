@@ -11,12 +11,7 @@ pub(super) fn error_result(error_code: &str, message: String) -> Value {
 
 /// Serialize a validation error into the `ok:false` content envelope.
 pub(super) fn validation_error(v: &validation::ValidationError) -> String {
-    json!({
-        "ok": false,
-        "error_code": v.error_code,
-        "message": v.message
-    })
-    .to_string()
+    error_result(v.error_code, v.message.clone()).to_string()
 }
 
 /// Fold the wall-clock duration of a tool call into its result payload, and
