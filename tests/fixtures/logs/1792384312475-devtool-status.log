@@ -1,0 +1,13 @@
+# command: (cd /build && source /build/oe-init-build-env . && devtool status)
+# cwd: /build
+# exit_code: 0
+Altered environment for raspberrypi4-64@atlas development
+NOTE: Starting bitbake server...
+app-manager: /build/workspace/sources/app-manager
+drm-planes-test: /build/workspace/sources/drm-planes-test (/build/workspace/recipes/drm-planes-test/drm-planes-test.bb)
+flutter-plugin-atlas-loader-lean: /build/workspace/sources/flutter-plugin-atlas-loader-lean
+flutter-wayland-client-lean: /build/workspace/sources/flutter-wayland-client-lean
+lean-display-server: /build/workspace/sources/lean-display-server
+lvgl-atlas-lean: /build/workspace/sources/lvgl-atlas-lean
+weston: /build/workspace/sources/weston
+window-manager: /build/workspace/sources/window-manager

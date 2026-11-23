@@ -1,0 +1,122 @@
+# command: (cd /build && source /build/oe-init-build-env . && devtool build lvgl-atlas-lean)
+# cwd: /build
+# exit_code: 1
+Altered environment for raspberrypi4-64@atlas development
+NOTE: Starting bitbake server...
+NOTE: Reconnecting to bitbake server...
+NOTE: Retrying server connection (#1)... (13:39:15.804810)
+Loading cache...done.
+Loaded 9247 entries from dependency cache.
+Parsing recipes...done.
+Parsing of 6424 .bb files complete (6417 cached, 7 parsed). 9254 targets, 836 skipped, 10 masked, 0 errors.
+Loading cache...done.
+Loaded 9247 entries from dependency cache.
+Parsing recipes...done.
+Parsing of 6424 .bb files complete (6417 cached, 7 parsed). 9254 targets, 836 skipped, 10 masked, 0 errors.
+NOTE: Resolving any missing task queue dependencies
+
+Build Configuration:
+BB_VERSION           = "2.8.1"
+BUILD_SYS            = "x86_64-linux"
+NATIVELSBSTRING      = "universal"
+TARGET_SYS           = "aarch64-atlas-linux"
+MACHINE              = "raspberrypi4-64"
+DISTRO               = "atlas"
+DISTRO_VERSION       = "26.10.0-unofficial.scarthgap.s14"
+TUNE_FEATURES        = "aarch64 crc cortexa72"
+TARGET_FPU           = ""
+DISTRO_VERSION_PATCH = "unofficial"
+DISTRO_CODENAME      = "bootes"
+DISTRO_RELEASE_TYPE  = "nonMP"
+DISTRO_FEATURES      = "      alsa     atlas-boot-sound     atlas-dac     atlas-idps     ipv6     ld-is-lld     opengl     pam     polkit     pulseaudio     seccomp     virtualization     wayland     wifi       atlas-read-only-rootfs      lto     thin-lto  apparmor bluetooth atlas-wayland-gbm tensorflow minidebuginfo atlas-remote-display systemd usrmerge"
+MACHINE_FEATURES     = " pci apm usbhost keyboard vfat ext2 screen touchscreen alsa bluetooth wifi sdio vc4graphics atlas-gl-backend atlas-gpu-delegate atlas-drm"
+IMAGE_FEATURES       = " "
+DATETIME             = "20261015043931"
+META_ATLAS_BASELINE  = "atlas/scarthgap/304"
+DISTRO_NAME          = "ATLAS Platform"
+ROS_DISTRO           = "humble"
+ROS_VERSION          = "2"
+ROS_PYTHON_VERSION   = "3"
+meta-atlas-yp5.0-scarthgap 
+meta-atlas-apparmor  
+meta-atlas-raspberrypi 
+meta-atlas           = "master:b7bcd10f39fc4f309b2b445399e33a714e225f0a"
+meta-raspberrypi     = "scarthgap:6ca1f75017cc5d5acdb8bb05634c4bc01fa049fd"
+meta-ros2-humble     
+meta-ros2            = "scarthgap:731aa26c6fde2ff4a4991c7f9ac6005ac4a491b1"
+meta-security        = "scarthgap:b13f1705d723650de61277670c8a76aadea4cfdd"
+meta-ros-common      = "scarthgap:731aa26c6fde2ff4a4991c7f9ac6005ac4a491b1"
+meta-flutter-apps    
+meta-flutter         = "scarthgap:80f1a4816913403211548bf1bbf2bf6fd8f378b8"
+meta-tensorflow      = "scarthgap:eeee54cfa3c51c1fd99604a0d5f173096bdcf1da"
+meta-virtualization  = "scarthgap:ee1ec1ee542389a3fc3692fdd232f9dd86c849a5"
+meta-clang           = "scarthgap-clang20:407541071937acb1f7135a6c890ba4e56554d839"
+meta-filesystems     
+meta-python          
+meta-networking      
+meta-multimedia      
+meta-oe              = "scarthgap:b5874ea07d69919d9b40d59f2c2f0bbd24bc3259"
+meta                 = "scarthgap:07ca97baad7b182849ee50f0bd629b68dc9f53b3"
+workspace            = "scarthgap:25ccdcf0417b75339ea5f48ce6cb398e9c67f46f"
+
+Initialising tasks...WARNING: /build/meta-atlas/yocto-backward-compat-layers/meta-atlas-yp5.0-scarthgap/dynamic-layers/raspberrypi/recipes-backport-5.2/linux-libc-headers/linux-libc-headers_6.12.bb:do_fetch is tainted from a forced run
+WARNING: /build/oe-core/meta/recipes-core/glibc/glibc_2.39.bb:do_unpack is tainted from a forced run
+WARNING: /build/meta-atlas/yocto-backward-compat-layers/meta-atlas-yp5.0-scarthgap/dynamic-layers/raspberrypi/recipes-backport-5.2/linux-libc-headers/linux-libc-headers_6.12.bb:do_unpack is tainted from a forced run
+WARNING: /build/meta-atlas/meta-atlas/recipes-atlas/lean-display-server/lean-display-server_0.1.bb:do_compile is tainted from a forced run
+Sstate summary: Wanted 5 Local 2 Mirrors 0 Missed 3 Current 833 (40% match, 99% complete)
+Removing 1 stale sstate objects for arch raspberrypi4_64...done.
+Removing 2 stale sstate objects for arch cortexa72...done.
+NOTE: Executing Tasks
+NOTE: Running task 2098 of 2131 (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_configure)
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_configure: Started
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_configure: Succeeded
+NOTE: Running task 2127 of 2131 (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_compile)
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_compile: Started
+NOTE: lvgl-atlas-lean: compiling from external source tree /build/workspace/sources/lvgl-atlas-lean
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_compile: Succeeded
+NOTE: Running task 2128 of 2131 (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_install)
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_install: Started
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_install: Succeeded
+NOTE: Running task 2129 of 2131 (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_package)
+NOTE: Running task 2130 of 2131 (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_populate_sysroot)
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_populate_sysroot: Started
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_package: Started
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_populate_sysroot: Succeeded
+ERROR: lvgl-atlas-lean-9.5.0-r3.0 do_package: QA Issue: lvgl-atlas-lean: Files/directories were installed but not shipped in any package:
+  /usr/lib/systemd
+  /usr/lib/systemd/system
+  /usr/lib/systemd/system-preset
+  /usr/lib/systemd/system/lvgl-overlay.service
+  /usr/lib/systemd/system-preset/90-lvgl-overlay.preset
+Please set FILES such that these items are packaged. Alternatively if they are unneeded, avoid installing them or delete them within do_install.
+lvgl-atlas-lean: 5 installed and not shipped files. [installed-vs-shipped]
+WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: [atlas-dac] 1 DAC violations found in component lvgl-atlas-lean. See /build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/dac-violations/dac-violation.json for details.
+ERROR: lvgl-atlas-lean-9.5.0-r3.0 do_package: Fatal QA errors were found, failing task.
+WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: /build/oe-core/meta/classes/report-error.bbclass:88: DeprecationWarning: codecs.open() is deprecated. Use open() instead.
+  with codecs.open(log, encoding='utf-8') as logFile:
+
+WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: /build/oe-core/meta/classes/report-error.bbclass:16: DeprecationWarning: codecs.open() is deprecated. Use open() instead.
+  with codecs.open(datafile, 'r', 'utf-8') as f:
+
+WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: /build/oe-core/meta/classes/report-error.bbclass:25: DeprecationWarning: codecs.open() is deprecated. Use open() instead.
+  with codecs.open(datafile, 'w', 'utf-8') as f:
+
+ERROR: Logfile of failure stored in: /build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/temp/log.do_package.2344472
+NOTE: recipe lvgl-atlas-lean-9.5.0-r3.0: task do_package: Failed
+ERROR: Task (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_package) failed with exit code '1'
+NOTE: Tasks Summary: Attempted 2130 tasks of which 2125 didn't need to be rerun and 1 failed.
+NOTE: The errors for this build are stored in /build/tmp/log/error-report/error_report_20261015043931.txt
+You can send the errors to a reports server by running:
+  send-error-report /build/tmp/log/error-report/error_report_20261015043931.txt [-s server]
+NOTE: The contents of these logs will be posted in public if you use the above command with the default server. Please ensure you remove any identifying or proprietary information when prompted before sending.
+NOTE: Uploading the report to kairos.lge.com:8000
+WARNING: Report submitted: http://kairos.lge.com/Errors/Build/162552/
+NOTE: Build completion summary:
+NOTE:   do_populate_sysroot: 0.0% sstate reuse(0 setscene, 1 scratch)
+NOTE:   do_package: 0.0% sstate reuse(0 setscene, 1 scratch)
+
+Summary: 1 task failed:
+  /build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_package
+    log: /build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/temp/log.do_package.2344472
+Summary: There were 9 WARNING messages.
+Summary: There were 2 ERROR messages, returning a non-zero exit code.

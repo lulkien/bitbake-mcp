@@ -1,0 +1,67 @@
+{
+  "outcome": "failed",
+  "failed_stage": "tasks",
+  "failed_tasks": [
+    {
+      "task": "lvgl-atlas-lean:do_package",
+      "recipe_file": "/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb",
+      "task_log": "/build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/temp/log.do_package.2344472",
+      "first_error": "ERROR: lvgl-atlas-lean-9.5.0-r3.0 do_package: QA Issue: lvgl-atlas-lean: Files/directories were installed but not shipped in any package:"
+    }
+  ],
+  "errors": [
+    "ERROR: lvgl-atlas-lean-9.5.0-r3.0 do_package: Fatal QA errors were found, failing task."
+  ],
+  "warnings": [
+    {
+      "count": 1,
+      "sample": "WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: [atlas-dac] 1 DAC violations found in component lvgl-atlas-lean. See /build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/dac-violations/dac-violation.json for details."
+    }
+  ],
+  "noise_warnings": 8,
+  "tasks": {
+    "attempted": 2130,
+    "not_rerun": 2125,
+    "failed": 1
+  },
+  "sstate": {
+    "wanted": 5,
+    "local": 2,
+    "mirrors": 0,
+    "missed": 3,
+    "current": 833,
+    "match_pct": 40,
+    "complete_pct": 99
+  },
+  "parse": {
+    "bb_files": 6424,
+    "parsed": 7,
+    "errors": 0
+  },
+  "tail": [
+    "WARNING: /build/meta-atlas/meta-atlas/recipes-atlas/lean-display-server/lean-display-server_0.1.bb:do_compile is tainted from a forced run",
+    "Sstate summary: Wanted 5 Local 2 Mirrors 0 Missed 3 Current 833 (40% match, 99% complete)",
+    "ERROR: lvgl-atlas-lean-9.5.0-r3.0 do_package: QA Issue: lvgl-atlas-lean: Files/directories were installed but not shipped in any package:",
+    "WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: [atlas-dac] 1 DAC violations found in component lvgl-atlas-lean. See /build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/dac-violations/dac-violation.json for details.",
+    "ERROR: lvgl-atlas-lean-9.5.0-r3.0 do_package: Fatal QA errors were found, failing task.",
+    "WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: /build/oe-core/meta/classes/report-error.bbclass:88: DeprecationWarning: codecs.open() is deprecated. Use open() instead.",
+    "WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: /build/oe-core/meta/classes/report-error.bbclass:16: DeprecationWarning: codecs.open() is deprecated. Use open() instead.",
+    "WARNING: lvgl-atlas-lean-9.5.0-r3.0 do_package: /build/oe-core/meta/classes/report-error.bbclass:25: DeprecationWarning: codecs.open() is deprecated. Use open() instead.",
+    "ERROR: Logfile of failure stored in: /build/tmp/work/cortexa72-atlas-linux/lvgl-atlas-lean/9.5.0/temp/log.do_package.2344472",
+    "ERROR: Task (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_package) failed with exit code '1'",
+    "NOTE: Tasks Summary: Attempted 2130 tasks of which 2125 didn't need to be rerun and 1 failed.",
+    "WARNING: Report submitted: http://kairos.lge.com/Errors/Build/162552/",
+    "Summary: 1 task failed:",
+    "Summary: There were 9 WARNING messages.",
+    "Summary: There were 2 ERROR messages, returning a non-zero exit code."
+  ],
+  "lines": {
+    "total": 122,
+    "noise": 85,
+    "progress": 17,
+    "task_failed": 2,
+    "summary": 7,
+    "error": 2,
+    "warning": 9
+  }
+}

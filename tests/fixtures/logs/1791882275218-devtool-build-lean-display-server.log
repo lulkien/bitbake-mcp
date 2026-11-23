@@ -1,0 +1,91 @@
+# command: (cd /build && source /build/oe-init-build-env . && devtool build lean-display-server)
+# cwd: /build
+# exit_code: 0
+Altered environment for qcs6490-rb3gen2-vision-kit@atlas development
+NOTE: Starting bitbake server...
+NOTE: Reconnecting to bitbake server...
+NOTE: Retrying server connection (#1)... (18:03:51.972656)
+Loading cache...done.
+Loaded 9605 entries from dependency cache.
+Parsing recipes...done.
+Parsing of 6776 .bb files complete (6758 cached, 18 parsed). 9622 targets, 818 skipped, 15 masked, 0 errors.
+WARNING: No recipes in default available for:
+  /build/meta-qcom/meta-qcom-hwe/recipes-core/uutils-coreutils/uutils-coreutils_0.0.27.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-bad_1.20%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-bad_1.24%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-base_1.24%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-good_1.20%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-good_1.24%.bbappend
+  /build/workspace/appends/linux-raspberrypi_6.12.bbappend
+
+Summary: There was 1 WARNING message.
+Loading cache...done.
+Loaded 9605 entries from dependency cache.
+Parsing recipes...done.
+Parsing of 6776 .bb files complete (6758 cached, 18 parsed). 9622 targets, 818 skipped, 15 masked, 0 errors.
+WARNING: No recipes in default available for:
+  /build/meta-qcom/meta-qcom-hwe/recipes-core/uutils-coreutils/uutils-coreutils_0.0.27.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-bad_1.20%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-bad_1.24%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-base_1.24%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-good_1.20%.bbappend
+  /build/meta-qcom/meta-qcom-qim-product-sdk/recipes-gst/gstreamer/gstreamer1.0-plugins-good_1.24%.bbappend
+  /build/workspace/appends/linux-raspberrypi_6.12.bbappend
+NOTE: Resolving any missing task queue dependencies
+NOTE: Multiple providers are available for virtual/libgbm-native (mesa-native, msm-native)
+Consider defining a PREFERRED_PROVIDER entry to match virtual/libgbm-native
+
+Build Configuration:
+BB_VERSION           = "2.8.1"
+BUILD_SYS            = "x86_64-linux"
+NATIVELSBSTRING      = "universal"
+TARGET_SYS           = "aarch64-atlas-linux"
+MACHINE              = "qcs6490-rb3gen2-vision-kit"
+DISTRO               = "atlas"
+DISTRO_VERSION       = "26.10.0-unofficial.scarthgap.s14"
+TUNE_FEATURES        = "aarch64 armv8-2a crypto"
+TARGET_FPU           = ""
+DISTRO_VERSION_PATCH = "unofficial"
+DISTRO_CODENAME      = "bootes"
+DISTRO_RELEASE_TYPE  = "nonMP"
+DISTRO_FEATURES      = "      alsa     atlas-boot-sound     atlas-dac     atlas-idps     ipv6     ld-is-lld     opengl     pam     polkit     pulseaudio     seccomp     virtualization     wayland     wifi       atlas-read-only-rootfs      lto     thin-lto  apparmor vulkan bluetooth  tensorflow minidebuginfo atlas-remote-display systemd usrmerge"
+MACHINE_FEATURES     = "usbhost usbgadget alsa wifi bluetooth atlas-gpu-delegate atlas-gl-backend atlas-cl-backend"
+IMAGE_FEATURES       = " "
+DATETIME             = "20261013090424"
+META_ATLAS_BASELINE  = "atlas/scarthgap/304"
+DISTRO_NAME          = "ATLAS Platform"
+ROS_DISTRO           = "humble"
+ROS_VERSION          = "2"
+ROS_PYTHON_VERSION   = "3"
+meta-atlas-yp5.0-scarthgap 
+meta-atlas-apparmor  
+meta-atlas-qualcomm  
+meta-atlas           = "master:b7bcd10f39fc4f309b2b445399e33a714e225f0a"
+meta-qcom-distro     = "scarthgap:13eb357943de721dce7bf51620c7e3f6107a4091"
+meta-qcom-qim-product-sdk = "scarthgap:fddf2645eec50640e275a830060c998aee3e196a"
+meta-qcom-hwe        = "scarthgap:4d158b3a553312a95cd31e4ac511bb0dc0b16379"
+meta-qcom            = "scarthgap:ec80a36bce11d8182b4bb2a6fa0359adfeccde0a"
+meta-ros2-humble     
+meta-ros2            = "scarthgap:731aa26c6fde2ff4a4991c7f9ac6005ac4a491b1"
+meta-security        = "scarthgap:b13f1705d723650de61277670c8a76aadea4cfdd"
+meta-ros-common      = "scarthgap:731aa26c6fde2ff4a4991c7f9ac6005ac4a491b1"
+meta-flutter-apps    
+meta-flutter         = "scarthgap:80f1a4816913403211548bf1bbf2bf6fd8f378b8"
+meta-tensorflow      = "scarthgap:eeee54cfa3c51c1fd99604a0d5f173096bdcf1da"
+meta-virtualization  = "scarthgap:ee1ec1ee542389a3fc3692fdd232f9dd86c849a5"
+meta-clang           = "scarthgap-clang20:407541071937acb1f7135a6c890ba4e56554d839"
+meta-filesystems     
+meta-python          
+meta-networking      
+meta-multimedia      
+meta-oe              = "scarthgap:b5874ea07d69919d9b40d59f2c2f0bbd24bc3259"
+meta                 = "scarthgap:07ca97baad7b182849ee50f0bd629b68dc9f53b3"
+workspace            = "scarthgap:25ccdcf0417b75339ea5f48ce6cb398e9c67f46f"
+
+Initialising tasks...WARNING: /build/oe-core/meta/recipes-kernel/linux-libc-headers/linux-libc-headers_6.6.bb:do_patch is tainted from a forced run
+Sstate summary: Wanted 0 Local 0 Mirrors 0 Missed 0 Current 678 (0% match, 100% complete)
+done.
+NOTE: Executing Tasks
+NOTE: Tasks Summary: Attempted 1701 tasks of which 1701 didn't need to be rerun and all succeeded.
+
+Summary: There were 2 WARNING messages.

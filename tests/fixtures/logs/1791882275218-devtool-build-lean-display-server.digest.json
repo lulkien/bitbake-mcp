@@ -1,0 +1,29 @@
+{
+  "outcome": "succeeded",
+  "noise_warnings": 3,
+  "tasks": {
+    "attempted": 1701,
+    "not_rerun": 1701,
+    "failed": 0
+  },
+  "sstate": {
+    "wanted": 0,
+    "local": 0,
+    "mirrors": 0,
+    "missed": 0,
+    "current": 678,
+    "match_pct": 0,
+    "complete_pct": 100
+  },
+  "parse": {
+    "bb_files": 6776,
+    "parsed": 18,
+    "errors": 0
+  },
+  "lines": {
+    "total": 91,
+    "noise": 82,
+    "summary": 6,
+    "warning": 3
+  }
+}

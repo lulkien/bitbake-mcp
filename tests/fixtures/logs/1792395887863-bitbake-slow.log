@@ -1,0 +1,5 @@
+# command: (cd '/build' && source /build/oe-init-build-env . && bitbake slow)
+# cwd: /build
+# exit_code: -          
+Altered environment for raspberrypi4-64@atlas development
+Loading cache...

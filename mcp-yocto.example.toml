@@ -1,0 +1,19 @@
+# mcp-yocto configuration
+#
+# Copy to ./mcp-yocto.toml, ~/.config/mcp-yocto.toml, or point
+# MCP_YOCTO_CONFIG at it. Search order: MCP_YOCTO_CONFIG,
+# ./mcp-yocto.toml, ~/.config/mcp-yocto.toml.
+#
+# All fields optional. Without init_script, build commands run directly from
+# PATH (only works if the server process already has a sourced Yocto env).
+
+# Absolute path to the Yocto environment init script, e.g.
+#   /home/worker/atlas/oe-init-build-env
+# When set, every bitbake/devtool command runs as
+#   bash -c "source <init_script> .; <command>"
+# with `build_dir` as the working directory, so bitbake/devtool are on PATH
+# with the correct BBPATH/BUILDDIR.
+# init_script = "/home/worker/atlas/oe-init-build-env"
+
+# Default build directory for commands when a tool call omits `build_dir`.
+# build_dir = "/home/worker/atlas"

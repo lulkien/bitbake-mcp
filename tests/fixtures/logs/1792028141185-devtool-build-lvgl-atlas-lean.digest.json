@@ -1,0 +1,69 @@
+{
+  "outcome": "failed",
+  "failed_stage": "tasks",
+  "failed_tasks": [
+    {
+      "task": "lvgl-atlas-lean:do_compile",
+      "recipe_file": "/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb",
+      "task_log": "/build/tmp/work/armv8-2a-atlas-linux/lvgl-atlas-lean/9.5.0/temp/log.do_compile.2239491",
+      "first_error": "/build/workspace/sources/lvgl-atlas-lean/atlas-samples/lvgl-overlay/lvgl-overlay.c:575:9: error: call to undeclared function 'stat'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]",
+      "error_lines": 4
+    }
+  ],
+  "warnings": [
+    {
+      "count": 1,
+      "sample": "WARNING: lean-display-server-0.1.2-r2.1 do_package: [atlas-dac] 1 DAC violations found in component lean-display-server. See /build/tmp/work/armv8-2a-atlas-linux/lean-display-server/0.1.2/dac-violations/dac-violation.json for details."
+    }
+  ],
+  "noise_warnings": 7,
+  "tasks": {
+    "attempted": 2223,
+    "not_rerun": 2212,
+    "failed": 1
+  },
+  "sstate": {
+    "wanted": 8,
+    "local": 2,
+    "mirrors": 0,
+    "missed": 6,
+    "current": 878,
+    "match_pct": 25,
+    "complete_pct": 99
+  },
+  "parse": {
+    "bb_files": 6776,
+    "parsed": 16,
+    "errors": 0
+  },
+  "tail": [
+    "|   583 |         if (mkfifo(CMD_PATH, 0666) != 0) {",
+    "|       |             ^",
+    "| /build/workspace/sources/lvgl-atlas-lean/atlas-samples/lvgl-overlay/lvgl-overlay.c:622:13: error: call to undeclared function 'fstat'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]",
+    "|   622 |             fstat(g_cmd_fd, &st) == 0 && st.st_nlink == 0)",
+    "|       |             ^",
+    "| 4 errors generated.",
+    "| ninja: build stopped: subcommand failed.",
+    "| ",
+    "| WARNING: exit code 1 from a shell command.",
+    "ERROR: Task (/build/meta-atlas/meta-atlas/recipes-graphics/lvgl-atlas/lvgl-atlas-lean_9.5.0.bb:do_compile) failed with exit code '1'",
+    "NOTE: Tasks Summary: Attempted 2223 tasks of which 2212 didn't need to be rerun and 1 failed.",
+    "WARNING: Report submitted: http://kairos.lge.com/Errors/Build/162529/",
+    "Summary: 1 task failed:",
+    "Summary: There were 7 WARNING messages.",
+    "Summary: There was 1 ERROR message, returning a non-zero exit code."
+  ],
+  "lines": {
+    "total": 200,
+    "noise": 101,
+    "progress": 37,
+    "task_cmd": 23,
+    "task_other": 15,
+    "diag": 4,
+    "diag_failed": 1,
+    "task_failed": 2,
+    "summary": 8,
+    "error": 1,
+    "warning": 8
+  }
+}

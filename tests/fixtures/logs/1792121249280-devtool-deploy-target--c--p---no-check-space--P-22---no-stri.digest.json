@@ -1,0 +1,13 @@
+{
+  "outcome": "succeeded",
+  "parse": {
+    "bb_files": 6424,
+    "parsed": 7,
+    "errors": 0
+  },
+  "lines": {
+    "total": 13,
+    "noise": 12,
+    "summary": 1
+  }
+}
