@@ -380,7 +380,7 @@ and no digest needed the drop order.
 
 ## Logging
 
-Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream on stdout is never corrupted. Configure the level with the `RUST_LOG`-style `log` filter if needed; default is `info`.
+Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream on stdout is never corrupted. Set `RUST_LOG` to a bare level (`error`, `warn`, `info`, `debug`, `trace`, or `off`) to configure logging; unset or invalid values default to `info`.
 
 ## Layout
 

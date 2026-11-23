@@ -64,6 +64,7 @@ def start(env):
 def stop(proc):
     proc.stdin.close()
     proc.wait(timeout=5)
+    return proc.stderr.read().decode()
 
 
 fail = 0
@@ -71,6 +72,26 @@ def check(label, cond, detail=""):
     global fail
     if not cond: fail += 1
     print(f"[{'PASS' if cond else 'FAIL'}] {label}" + (f"\n      {detail}" if detail and not cond else ""))
+
+
+# --- logging level -------------------------------------------------------
+env = shims.server_env(SH)
+env.pop("RUST_LOG", None)
+proc, _ = start(env)
+stderr = stop(proc)
+check("unset RUST_LOG defaults to info", "starting mcp-yocto" in stderr, stderr)
+
+env = shims.server_env(SH)
+env["RUST_LOG"] = "warn"
+proc, _ = start(env)
+stderr = stop(proc)
+check("RUST_LOG=warn filters info startup log", "starting mcp-yocto" not in stderr, stderr)
+
+env = shims.server_env(SH)
+env["RUST_LOG"] = "not-a-level"
+proc, _ = start(env)
+stderr = stop(proc)
+check("invalid RUST_LOG defaults to info", "starting mcp-yocto" in stderr, stderr)
 
 
 # --- 1. init_script + build_dir from config -------------------------------

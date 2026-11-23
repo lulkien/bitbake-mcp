@@ -18,6 +18,7 @@ mod tools;
 mod validation;
 
 use rmcp::ServiceExt;
+use std::str::FromStr;
 use tools::BitBakeServer;
 
 const SERVER_NAME: &str = "mcp-yocto";
@@ -28,6 +29,10 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Log to stderr so the MCP JSON-RPC stream on stdout stays clean.
+    let level = std::env::var("RUST_LOG")
+        .ok()
+        .and_then(|value| log::LevelFilter::from_str(&value).ok())
+        .unwrap_or(log::LevelFilter::Info);
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -37,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
+        .level(level)
         .chain(std::io::stderr())
         .apply()
         .map_err(|e| anyhow::anyhow!("failed to init logging: {e}"))?;
