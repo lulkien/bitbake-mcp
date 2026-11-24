@@ -149,9 +149,8 @@ impl BitBakeServer {
         self.run_tool_cmd("devtool", argv, recipe, build_dir).await
     }
 
-    /// Run `bitbake [-f] [-c <task>] [-C <task>] [--runall <task>]
-    /// [--runonly <task>] [sstate flags] <recipe>` in the build directory.
-    #[tool(description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] <recipe>' in the build directory. Omit task to run the recipe's default task; force=true adds -f; clear_stamp invalidates that task's stamp with -C before the default task runs.")]
+    /// Run bitbake for a recipe or task in the build directory.
+    #[tool(description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] [-k] [-n] [-S none|printdiff] <recipe>' in the build directory. Omit task to run the recipe's default task; task='listtasks' lists available tasks. continue_on_error=true adds -k; dry_run=true adds -n; dump_signatures selects the -S signature diagnostic.")]
     async fn bitbake_recipe(
         &self,
         Parameters(BitbakeRecipeReq {
@@ -164,12 +163,15 @@ impl BitBakeServer {
             no_setscene,
             skip_setscene,
             setscene_only,
+            continue_on_error,
+            dry_run,
+            dump_signatures,
             build_dir,
         }): Parameters<BitbakeRecipeReq>,
     ) -> String {
         // Command: bitbake [-f] [-c <task>] [-C <task>] [--runall <task>]
         //          [--runonly <task>] [--no-setscene] [--skip-setscene]
-        //          [--setscene-only] <recipe>
+        //          [--setscene-only] [-k] [-n] [-S <mode>] <recipe>
         let argv = match argv::bitbake_recipe(
             force,
             task,
@@ -179,6 +181,9 @@ impl BitBakeServer {
             no_setscene,
             skip_setscene,
             setscene_only,
+            continue_on_error,
+            dry_run,
+            dump_signatures,
         ) {
             Ok(argv) => argv,
             Err(v) => return validation_error(&v),

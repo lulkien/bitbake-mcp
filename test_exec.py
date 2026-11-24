@@ -200,6 +200,18 @@ check("bitbake_recipe full argv order",
       "bitbake-args:-f -c compile -C compile --runall compile --no-setscene"
       " --skip-setscene --setscene-only busybox\n" in r.get("stdout",""), str(r.get("stdout")))
 
+r, _ = call("bitbake_recipe", {"recipe": "busybox", "continue_on_error": True,
+                               "dry_run": True, "dump_signatures": "printdiff",
+                               "build_dir": BUILD})
+check("bitbake_recipe -k -n -S printdiff argv",
+      "bitbake-args:-k -n -S printdiff busybox\n" in r.get("stdout", ""),
+      str(r.get("stdout")))
+
+r, _ = call("bitbake_recipe", {"recipe": "busybox", "dump_signatures": "bogus",
+                               "build_dir": BUILD})
+check("bitbake_recipe rejects unknown dump_signatures",
+      r.get("ok") is False and "bitbake-args" not in r.get("stdout", ""), str(r))
+
 # every task-valued option is validated before argv is built
 for field in ("task", "clear_stamp", "runall", "runonly"):
     r, _ = call("bitbake_recipe", {"recipe": "busybox", field: "compile; rm -rf /", "build_dir": BUILD})

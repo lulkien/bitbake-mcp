@@ -220,7 +220,7 @@ package_write_ipk`) is far smaller.
 ### `bitbake_recipe`
 
 `bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>]
-[sstate flags] <recipe>` — build a recipe, or one task of it.
+[sstate flags] [-k] [-n] [-S <none|printdiff>] <recipe>` — build a recipe, or one task of it.
 
 ```json
 { "recipe": "busybox", "build_dir": "/path/to/build" }
@@ -229,6 +229,8 @@ package_write_ipk`) is far smaller.
 { "recipe": "busybox", "clear_stamp": "compile" }
 { "recipe": "busybox", "runall": "compile" }
 { "recipe": "busybox", "no_setscene": true }
+{ "recipe": "busybox", "continue_on_error": true, "dry_run": true,
+  "dump_signatures": "printdiff" }
 ```
 
 | argument | flag | default | meaning |
@@ -241,6 +243,9 @@ package_write_ipk`) is far smaller.
 | `no_setscene` | `--no-setscene` | `false` | ignore sstate and build everything needed |
 | `skip_setscene` | `--skip-setscene` | `false` | skip setscene tasks that would run; keep what was already restored from sstate |
 | `setscene_only` | `--setscene-only` | `false` | run only setscene tasks |
+| `continue_on_error` | `-k` | `false` | continue as much as possible after an error |
+| `dry_run` | `-n` | `false` | show the task execution plan without running it |
+| `dump_signatures` | `-S <none|printdiff>` | omitted | show signature data or differences explaining why a task would rerun |
 
 Flags are emitted in the order `bitbake --help` lists them, with the recipe
 last — the reported `command` mirrors a command line a human would write. Task
@@ -249,8 +254,8 @@ letters, digits, `_` and `-`, and cannot start with `-`. The sstate flags have
 no off form, so `false` or an omitted value emits nothing and bitbake's own
 default applies.
 
-The other options `bitbake` offers (`-e`, `-S`, `-g`, `-k`, `-n`, …) are not
-exposed.
+Other `bitbake` options such as `-e` and `-g` are not exposed. Signature
+diagnostics are limited to `-S none` and `-S printdiff`.
 
 ## Error format
 

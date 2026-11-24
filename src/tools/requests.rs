@@ -71,6 +71,13 @@ pub(super) struct BuildDirReq {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(super) enum DumpSignatures {
+    None,
+    Printdiff,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct BitbakeRecipeReq {
     pub(super) recipe: String,
     /// Task to run with `-c <task>` (e.g. `compile`, `populate_sysroot`).
@@ -106,6 +113,15 @@ pub(super) struct BitbakeRecipeReq {
     /// tasks. Defaults to false.
     #[serde(default)]
     pub(super) setscene_only: Option<bool>,
+    /// `true` passes `-k` (continue as much as possible after an error).
+    #[serde(default)]
+    pub(super) continue_on_error: Option<bool>,
+    /// `true` passes `-n` (show the task execution plan without running it).
+    #[serde(default)]
+    pub(super) dry_run: Option<bool>,
+    /// `-S` signature diagnostics: `none` or `printdiff`.
+    #[serde(default)]
+    pub(super) dump_signatures: Option<DumpSignatures>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,
 }

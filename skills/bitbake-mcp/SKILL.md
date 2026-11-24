@@ -46,7 +46,7 @@ explicitly when several build trees exist):
 
 | tool | arguments | job |
 |---|---|---|
-| `bitbake_recipe` | `recipe`, `task?`, `force?`, `clear_stamp?`, `runall?`, `runonly?`, `no_setscene?`, `skip_setscene?`, `setscene_only?` | `bitbake [flags] <recipe>`; omit `task` for the recipe's default task |
+| `bitbake_recipe` | `recipe`, `task?`, `force?`, `clear_stamp?`, `runall?`, `runonly?`, `no_setscene?`, `skip_setscene?`, `setscene_only?`, `continue_on_error?`, `dry_run?`, `dump_signatures?` | `bitbake [flags] <recipe>`; omit `task` for the recipe's default task |
 | `devtool_status` | — | list recipes currently in the workspace (`devtool status`) |
 | `devtool_modify` | `recipe` | start modifying a recipe (extracts sources) |
 | `devtool_build` | `recipe`, `clean?` | `devtool build [-c] <recipe>`; `clean:true` cleans build results first |
@@ -73,6 +73,12 @@ restricts the run to one task, `runall: "<task>"` widens it to every recipe in
 the taskgraph. For sstate: `no_setscene: true` ignores it and builds everything
 needed, `skip_setscene: true` skips setscene tasks but keeps what was already
 restored, `setscene_only: true` restores without running real tasks.
+
+**Inspect tasks or plan a build.** `bitbake_recipe` with `task: "listtasks"`
+lists the tasks available for a recipe. `dry_run: true` (`-n`) prints the task
+execution plan without running it; `continue_on_error: true` (`-k`) continues
+through independent build failures, and `dump_signatures: "printdiff"` (`-S`)
+helps explain why a task would rerun.
 
 ## Pitfalls
 

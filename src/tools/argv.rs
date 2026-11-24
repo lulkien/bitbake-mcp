@@ -2,6 +2,7 @@
 //! validated before these run, except task names, which `bitbake_recipe`
 //! validates as it emits them.
 
+use super::requests::DumpSignatures;
 use crate::validation::{self, ValidationError};
 
 /// Push the setscene-selection flags shared by the bitbake tools.
@@ -44,7 +45,8 @@ pub(super) fn devtool_reset(no_clean: Option<bool>) -> Vec<String> {
 }
 
 /// `bitbake [-f] [-c <task>] [-C <task>] [--runall <task>]
-/// [--runonly <task>] [--no-setscene] [--skip-setscene] [--setscene-only]`;
+/// [--runonly <task>] [--no-setscene] [--skip-setscene] [--setscene-only]
+/// [-k] [-n] [-S <none|printdiff>]`;
 /// the caller appends the recipe. A task name that fails validation is the
 /// error.
 pub(super) fn bitbake_recipe(
@@ -56,6 +58,9 @@ pub(super) fn bitbake_recipe(
     no_setscene: Option<bool>,
     skip_setscene: Option<bool>,
     setscene_only: Option<bool>,
+    continue_on_error: Option<bool>,
+    dry_run: Option<bool>,
+    dump_signatures: Option<DumpSignatures>,
 ) -> Result<Vec<String>, ValidationError> {
     let mut argv: Vec<String> = Vec::new();
     if force.unwrap_or(false) {
@@ -75,6 +80,19 @@ pub(super) fn bitbake_recipe(
         argv.push(value);
     }
     push_setscene_flags(&mut argv, no_setscene, skip_setscene, setscene_only);
+    if continue_on_error.unwrap_or(false) {
+        argv.push("-k".to_string());
+    }
+    if dry_run.unwrap_or(false) {
+        argv.push("-n".to_string());
+    }
+    if let Some(signatures) = dump_signatures {
+        argv.push("-S".to_string());
+        argv.push(match signatures {
+            DumpSignatures::None => "none",
+            DumpSignatures::Printdiff => "printdiff",
+        }.to_string());
+    }
     Ok(argv)
 }
 
