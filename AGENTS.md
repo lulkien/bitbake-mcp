@@ -20,7 +20,8 @@ Done when all three hold:
 1. `command -v bitbake-mcp` prints a path.
 2. The probe below prints `16 tools: ...`.
 3. Steps 3 and 5 are done: the config file exists, and the usage skill is
-   installed.
+   installed with the `skills` CLI (or copied manually on machines without
+   Node/bun).
 
 **Fetch the repo first** (given only a repo link, this is the clone to run):
 
@@ -143,16 +144,23 @@ hermes mcp test bitbake-mcp     # "Connected" + "Tools discovered: 16"
 ### 5. Install the usage skill
 
 `skills/bitbake-mcp/SKILL.md` in this repo teaches an agent how to drive these
-tools (which tool for which job, workflows, pitfalls). Install it where your
-agent loads skills from:
+tools (which tool for which job, workflows, pitfalls). From the repository on
+GitHub, install it for Claude Code, Codex, and Hermes Agent with:
 
 ```bash
-mkdir -p ~/.hermes/skills/project && cp -R skills/bitbake-mcp ~/.hermes/skills/project/
+npx skills add lulkien/bitbake-mcp -g -a claude-code codex hermes-agent -s bitbake-mcp -y
 ```
 
-Other agents: point them at `skills/bitbake-mcp/SKILL.md` or copy that directory
-into their own skill/instruction directory. A new session picks it up; the
-current one has already loaded its skill index.
+From a local clone, use `npx skills add . -g -a claude-code codex hermes-agent -y`.
+`bunx skills ...` is equivalent; use Node >= 22.20 or bun. Set
+`DISABLE_TELEMETRY=1` to disable telemetry. Verify with `npx skills list -g`;
+it should print `bitbake-mcp ~/.agents/skills/bitbake-mcp`. Re-running the add
+command upgrades the skill and replaces local edits to the installed copy;
+uninstall with `npx skills remove bitbake-mcp -g -y`. For other agents, use
+`-a <agent>` or omit `-a` to choose interactively. Without Node or bun, copy the
+directory manually with `cp -R skills/bitbake-mcp ~/.agents/skills/` (or into
+the agent's skill directory). A new session picks it up; the current one has
+already loaded its skill index.
 
 ---
 

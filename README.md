@@ -14,11 +14,21 @@ cargo install --path . --locked    # -> ~/.cargo/bin/bitbake-mcp
 
 Register that binary as a **stdio** MCP server (absolute path, no arguments).
 `AGENTS.md` is the full agent-followable install: toolchain, config file,
-client registration, verification, and the usage skill. `skills/bitbake-mcp/SKILL.md`
-teaches an agent how to drive the tools:
+client registration, verification, and the usage skill. Install the skill from
+GitHub with `npx skills add lulkien/bitbake-mcp -g -a claude-code codex hermes-agent -s bitbake-mcp -y`
+or, from a local clone, with `npx skills add . -g -a claude-code codex hermes-agent -y`
+(`bunx skills ...` also works; Node >= 22.20 or bun is required). Set
+`DISABLE_TELEMETRY=1` to disable telemetry. Verify with `npx skills list -g`;
+the entry is `bitbake-mcp ~/.agents/skills/bitbake-mcp`. Re-running the add
+command upgrades it and replaces local edits to the installed copy; uninstall
+with `npx skills remove bitbake-mcp -g -y`. Use `-a <agent>` for other agents
+or omit `-a` to choose interactively. Without Node or bun, copy
+`skills/bitbake-mcp` manually to `~/.agents/skills/` or the agent's skill
+directory. The skill at `skills/bitbake-mcp/SKILL.md` teaches an agent how to
+drive the tools:
 
 ```bash
-cp -R skills/bitbake-mcp ~/.hermes/skills/project/
+npx skills add lulkien/bitbake-mcp -g -a claude-code codex hermes-agent -s bitbake-mcp -y
 ```
 
 **Design rules:**
