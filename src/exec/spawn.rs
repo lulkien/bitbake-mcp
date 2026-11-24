@@ -10,6 +10,9 @@ const INIT_SHELL: &str = "bash";
 /// Single-quote a value for `sh`. The input is also validated upstream to a
 /// metachar-free charset, so this is defense-in-depth.
 pub(super) fn shq(s: &str) -> String {
+	if !s.is_empty() && s.bytes().all(|b| b.is_ascii_alphanumeric() || b"/_.,:+-@%=".contains(&b)) {
+		return s.to_string();
+	}
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
@@ -33,13 +36,16 @@ pub(super) fn command(
         let init = init.to_string_lossy();
         let mut body = format!("source {} . || exit 1; ", shq(&init));
         body.push_str(program);
+        let mut sourced_command_line = vec![shq(program)];
         for a in args {
             body.push(' ');
             body.push_str(&shq(a));
+            sourced_command_line.push(shq(a));
         }
+        let sourced_command_line = sourced_command_line.join(" ");
         let mut cmd = tokio::process::Command::new(INIT_SHELL);
         cmd.arg("-c").arg(&body);
-        (cmd, format!("(cd {} && source {init} . && {command_line})", shq(cwd)))
+        (cmd, format!("(cd {} && source {} . && {sourced_command_line})", shq(cwd), shq(&init)))
     } else {
         let mut cmd = tokio::process::Command::new(program);
         cmd.args(args);

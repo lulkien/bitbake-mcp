@@ -58,6 +58,33 @@ def check(label, cond, detail=""):
     if not cond: fail += 1
     print(f"[{'PASS' if cond else 'FAIL'}] {label}" + (f"\n      {detail}" if detail and not cond else ""))
 
+# The sourced command display must quote an init path exactly as the shell does.
+space_dir = os.path.join(BASE, "init path")
+os.makedirs(space_dir)
+space_init = os.path.join(space_dir, "oe-init-build-env")
+shutil.copy(SH["init_script"], space_init)
+space_config = os.path.join(BASE, "space-config.toml")
+with open(space_config, "w") as fh:
+    fh.write(f'init_script = "{space_init}"\nbuild_dir = "{BUILD}"\n')
+space_env = dict(ENV, BITBAKE_MCP_CONFIG=space_config)
+space_proc = subprocess.Popen([BIN], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, env=space_env, cwd=BASE)
+def space_send(o):
+    space_proc.stdin.write((json.dumps(o) + "\n").encode()); space_proc.stdin.flush()
+space_send({"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+    "protocolVersion":"2024-11-05","capabilities":{},
+    "clientInfo":{"name":"t","version":"1"}}})
+json.loads(space_proc.stdout.readline())
+space_send({"jsonrpc":"2.0","method":"notifications/initialized"})
+space_send({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{
+    "name":"bitbake_recipe","arguments":{"recipe":"busybox"}}})
+space_result = json.loads(json.loads(space_proc.stdout.readline())[
+    "result"]["content"][0]["text"])
+check("sourced command quotes init path with spaces",
+      f"source '{space_init}' ." in space_result.get("command", ""),
+      space_result.get("command"))
+space_proc.stdin.close(); space_proc.wait(timeout=5)
+
 send({"jsonrpc":"2.0","id":2,"method":"tools/call",
       "params":{"name":"unknown_tool","arguments":{}}})
 unknown_tool_response = recv()
