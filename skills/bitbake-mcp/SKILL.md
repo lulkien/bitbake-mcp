@@ -12,7 +12,7 @@ metadata:
 
 # bitbake-mcp: BitBake/Yocto MCP server
 
-Twelve MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
+Fourteen MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
 while those fit 2 KiB, and a `digest` (≤ 4 KiB) when they do not. **A build's
 full output is in the log file, not in the result** — the `digest` says what
@@ -30,6 +30,8 @@ failed; open the log only when it is not enough.
 - Finding a recipe file: `devtool_find_recipe`.
 - Checking upstream versions: `devtool_check_upgrade_status`.
 - Reading configure options for a workspace recipe: `devtool_configure_help`.
+- Creating a recipe from a fetch URI: `devtool_add`.
+- Upgrading a workspace recipe: `devtool_upgrade`.
 - Any task where you would otherwise run `bitbake` or `devtool` in a terminal.
 
 Don't use for: setting up a Yocto build tree or editing recipes (edit files
@@ -64,6 +66,8 @@ explicitly when several build trees exist):
 | `devtool_find_recipe` | `recipe` | print the recipe file path |
 | `devtool_check_upgrade_status` | `recipes` (1–32 names) or `all:true` | report upstream version status |
 | `devtool_configure_help` | `recipe` | print workspace configure options without a pager |
+| `devtool_add` | `recipe`, `fetch_uri`, `version?`, `srcrev?` or `autorev?`, `srcbranch?` | create a workspace recipe from a fetch URI |
+| `devtool_upgrade` | `recipe`, `version?`, `srcrev?`, `srcbranch?`, `no_patch?` | upgrade a recipe in the workspace |
 
 ## Workflows
 
@@ -101,12 +105,11 @@ helps explain why a task would rerun.
 
 ## Pitfalls
 
-- **`devtool add` has no tool here.** Use the tools in the Tool map for exposed
-  commands; `devtool add <name> <srctree>` and any other unexposed subcommand run in `terminal`,
-  replicating the server's own invocation exactly:
-  `cd <build_dir> && bash -c 'source <init_script> . || exit 1; devtool add <name> <srctree>'`.
-  Everything after that — editing the generated `.bb`, building, deploying — goes
-  back through the tools.
+- For still-unexposed subcommands such as `rename` or `extract`, use `terminal`
+  only when needed and reproduce the configured build directory and sourced
+  Yocto environment. Use `devtool_add` to create a recipe from a fetch URI and
+  `devtool_upgrade` to upgrade a workspace recipe. Return to the tools for
+  subsequent builds and deployments.
 - **Run `bitbake`/`devtool` through these tools, never `terminal`.** They own
   cwd resolution, the sourced Yocto environment, argument validation, and the
   `elapsed_ms` measurement; a raw terminal call bypasses all four.

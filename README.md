@@ -44,7 +44,8 @@ Runs `bitbake` or `devtool` in a build directory:
 `bitbake_recipe`, `devtool_status`, `devtool_modify`,
 `devtool_build`, `devtool_build_image`, `devtool_reset`,
 `devtool_deploy_target`, `devtool_undeploy_target`, `devtool_search`,
-`devtool_find_recipe`, `devtool_check_upgrade_status`, `devtool_configure_help`
+`devtool_find_recipe`, `devtool_check_upgrade_status`, `devtool_configure_help`,
+`devtool_add`, `devtool_upgrade`
 
 Each tool is documented in full below.
 
@@ -294,6 +295,28 @@ recipe. The `-p` flag is always passed to prevent an interactive pager.
 { "recipe": "busybox" }
 ```
 
+### `devtool_add`
+
+`devtool add [-V version] [-S srcrev | -a] [-B srcbranch] <recipe> <fetch_uri>`
+creates a recipe in the workspace layer and source under `workspace/sources/`.
+Supported URI schemes are `http`, `https`, `ftp`, `git`, `gitsm`, `svn`, `npm`,
+and `crate`. `srcrev` and `autorev` cannot be used together.
+
+```json
+{ "recipe": "foo", "fetch_uri": "git://example.org/foo.git;branch=main",
+  "version": "1.0", "srcrev": "deadbeef", "srcbranch": "main" }
+```
+
+### `devtool_upgrade`
+
+`devtool upgrade [-V version] [-S srcrev] [-B srcbranch] [--no-patch]
+<recipe>` upgrades a recipe within the workspace layer and `workspace/sources/`.
+
+```json
+{ "recipe": "foo", "version": "2.0", "srcrev": "deadbeef",
+  "srcbranch": "stable/2", "no_patch": true }
+```
+
 ### `bitbake_recipe`
 
 `bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>]
@@ -469,7 +492,7 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 ## Layout
 
 - `src/main.rs` — entry wiring: logging, config, stdio serve
-- `src/tools/` — the twelve tools: `mod.rs` (server type, tool declarations, run
+- `src/tools/` — the fourteen tools: `mod.rs` (server type, tool declarations, run
   path), `requests.rs` (request structs), `argv.rs` (argument building),
   `envelope.rs` (`ok` envelope, `elapsed_ms`), `handler.rs` (`ServerHandler`,
   call timing)

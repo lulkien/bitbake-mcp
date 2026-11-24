@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the twelve execution tools over MCP stdio.
+"""Test the fourteen execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
@@ -164,6 +164,28 @@ check("devtool_check_upgrade_status rejects 33 recipes",
 r, _ = call("devtool_configure_help", {"recipe": "busybox", "build_dir": BUILD})
 check("devtool_configure_help always disables pager",
       "devtool-args:configure-help -p busybox\n" in r.get("stdout", ""), str(r))
+
+# Workspace creators validate values before spawning.
+r, _ = call("devtool_add", {"recipe": "foo", "fetch_uri": "git://example.org/foo",
+                             "version": "1.2", "srcrev": "abc123", "srcbranch": "release/1",
+                             "build_dir": BUILD})
+check("devtool_add exact argv",
+      "devtool-args:add -V 1.2 -S abc123 -B release/1 foo git://example.org/foo\n" in r.get("stdout", ""), str(r))
+r, _ = call("devtool_add", {"recipe": "foo", "fetch_uri": "https://example.org/foo", "autorev": True, "build_dir": BUILD})
+check("devtool_add autorev argv", "devtool-args:add -a foo https://example.org/foo\n" in r.get("stdout", ""), str(r))
+for label, args in (("bad scheme", {"fetch_uri": "bad://host/repo"}),
+                    ("leading dash URI", {"fetch_uri": "-git://host/repo"}),
+                    ("bad version", {"fetch_uri": "git://host/repo", "version": "bad value"}),
+                    ("srcrev with autorev", {"fetch_uri": "git://host/repo", "srcrev": "abc", "autorev": True}),
+                    ("branch traversal", {"fetch_uri": "git://host/repo", "srcbranch": "a..b"})):
+    r, _ = call("devtool_add", {"recipe": "foo", **args, "build_dir": BUILD})
+    check(f"devtool_add rejects {label}", r.get("ok") is False and "devtool-args" not in r.get("stdout", ""), str(r))
+r, _ = call("devtool_upgrade", {"recipe": "foo", "version": "2.0", "srcrev": "deadbeef",
+                                 "srcbranch": "stable/2", "no_patch": True, "build_dir": BUILD})
+check("devtool_upgrade exact argv",
+      "devtool-args:upgrade -V 2.0 -S deadbeef -B stable/2 --no-patch foo\n" in r.get("stdout", ""), str(r))
+r, _ = call("devtool_upgrade", {"recipe": "foo", "srcrev": "bad;rev", "build_dir": BUILD})
+check("devtool_upgrade rejects invalid srcrev", r.get("ok") is False and "devtool-args" not in r.get("stdout", ""), str(r))
 
 # devtool status (no arguments beyond build_dir; the newline pins the end of
 # the argv so an appended flag would fail this check)

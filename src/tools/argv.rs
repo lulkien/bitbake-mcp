@@ -1,4 +1,4 @@
-//! Argument vectors of the twelve tools. Pure: no I/O, no shell. User values are
+//! Argument vectors of the fourteen tools. Pure: no I/O, no shell. User values are
 //! validated before these run, except task names, which `bitbake_recipe`
 //! validates as it emits them.
 
@@ -90,6 +90,51 @@ pub(super) fn devtool_check_upgrade_status(
 /// `devtool configure-help -p <recipe>` always disables the pager.
 pub(super) fn devtool_configure_help() -> Vec<String> {
     vec!["configure-help".into(), "-p".into()]
+}
+
+/// `devtool add [-V <version>] [-S <srcrev> | -a] [-B <srcbranch>] <recipe> <uri>`.
+pub(super) fn devtool_add(
+    version: Option<String>,
+    srcrev: Option<String>,
+    autorev: Option<bool>,
+    srcbranch: Option<String>,
+) -> Vec<String> {
+    let mut args = vec!["add".into()];
+    if let Some(version) = version {
+        args.extend(["-V".into(), version]);
+    }
+    if let Some(srcrev) = srcrev {
+        args.extend(["-S".into(), srcrev]);
+    } else if autorev.unwrap_or(false) {
+        args.push("-a".into());
+    }
+    if let Some(branch) = srcbranch {
+        args.extend(["-B".into(), branch]);
+    }
+    args
+}
+
+/// `devtool upgrade [-V <version>] [-S <srcrev>] [-B <srcbranch>] [--no-patch] <recipe>`.
+pub(super) fn devtool_upgrade(
+    version: Option<String>,
+    srcrev: Option<String>,
+    srcbranch: Option<String>,
+    no_patch: Option<bool>,
+) -> Vec<String> {
+    let mut args = vec!["upgrade".into()];
+    if let Some(version) = version {
+        args.extend(["-V".into(), version]);
+    }
+    if let Some(srcrev) = srcrev {
+        args.extend(["-S".into(), srcrev]);
+    }
+    if let Some(branch) = srcbranch {
+        args.extend(["-B".into(), branch]);
+    }
+    if no_patch.unwrap_or(false) {
+        args.push("--no-patch".into());
+    }
+    args
 }
 
 /// `devtool reset [-n]`; the caller appends the recipe.

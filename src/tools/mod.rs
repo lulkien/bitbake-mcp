@@ -1,4 +1,4 @@
-//! The twelve tools: the server type, its tool declarations, and the shared
+//! The fourteen tools: the server type, its tool declarations, and the shared
 //! "resolve cwd, run, serialize" path every tool ends in.
 
 mod argv;
@@ -9,9 +9,9 @@ mod requests;
 use crate::{config, digest, exec, validation};
 use envelope::validation_error;
 use requests::{
-    BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolBuildImageReq, DevtoolBuildReq,
-    DevtoolCheckUpgradeStatusReq, DevtoolModifyReq, DevtoolRecipeReq, DevtoolResetReq,
-    DevtoolSearchReq, DevtoolUndeployTargetReq,
+    BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolAddReq, DevtoolBuildImageReq,
+    DevtoolBuildReq, DevtoolCheckUpgradeStatusReq, DevtoolModifyReq, DevtoolRecipeReq,
+    DevtoolResetReq, DevtoolSearchReq, DevtoolUndeployTargetReq, DevtoolUpgradeReq,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -97,6 +97,92 @@ impl BitBakeServer {
 
 #[tool_router]
 impl BitBakeServer {
+    /// Add a recipe from a fetch URI into the workspace.
+    #[tool(
+        description = "Run 'devtool add [-V version] [-S rev | -a] [-B branch] <recipe> <uri>'. Writes only to the workspace layer and workspace/sources/."
+    )]
+    async fn devtool_add(
+        &self,
+        Parameters(DevtoolAddReq {
+            recipe,
+            fetch_uri,
+            version,
+            srcrev,
+            autorev,
+            srcbranch,
+            build_dir,
+        }): Parameters<DevtoolAddReq>,
+    ) -> String {
+        if let Err(v) = validation::validate_fetch_uri(&fetch_uri) {
+            return validation_error(&v);
+        }
+        if let Some(value) = version.as_deref() {
+            if let Err(v) = validation::validate_version(value) {
+                return validation_error(&v);
+            }
+        }
+        if let Some(value) = srcrev.as_deref() {
+            if let Err(v) = validation::validate_srcrev(value) {
+                return validation_error(&v);
+            }
+        }
+        if let Some(value) = srcbranch.as_deref() {
+            if let Err(v) = validation::validate_branch(value) {
+                return validation_error(&v);
+            }
+        }
+        if srcrev.is_some() && autorev.unwrap_or(false) {
+            return validation_error(&validation::ValidationError {
+                error_code: "INVALID_ARGUMENT",
+                message: "srcrev and autorev are mutually exclusive".into(),
+            });
+        }
+        if let Err(v) = validation::validate_recipe_name(&recipe) {
+            return validation_error(&v);
+        }
+        let mut args = argv::devtool_add(version, srcrev, autorev, srcbranch);
+        args.extend([recipe, fetch_uri]);
+        self.run_cmd("devtool", args, build_dir).await
+    }
+
+    /// Upgrade a workspace recipe in place.
+    #[tool(
+        description = "Run 'devtool upgrade [-V version] [-S rev] [-B branch] [--no-patch] <recipe>'. Writes only to the workspace layer and workspace/sources/."
+    )]
+    async fn devtool_upgrade(
+        &self,
+        Parameters(DevtoolUpgradeReq {
+            recipe,
+            version,
+            srcrev,
+            srcbranch,
+            no_patch,
+            build_dir,
+        }): Parameters<DevtoolUpgradeReq>,
+    ) -> String {
+        if let Some(value) = version.as_deref() {
+            if let Err(v) = validation::validate_version(value) {
+                return validation_error(&v);
+            }
+        }
+        if let Some(value) = srcrev.as_deref() {
+            if let Err(v) = validation::validate_srcrev(value) {
+                return validation_error(&v);
+            }
+        }
+        if let Some(value) = srcbranch.as_deref() {
+            if let Err(v) = validation::validate_branch(value) {
+                return validation_error(&v);
+            }
+        }
+        if let Err(v) = validation::validate_recipe_name(&recipe) {
+            return validation_error(&v);
+        }
+        let mut args = argv::devtool_upgrade(version, srcrev, srcbranch, no_patch);
+        args.push(recipe);
+        self.run_cmd("devtool", args, build_dir).await
+    }
+
     /// Search recipes by name or summary.
     #[tool(
         description = "Run 'devtool search <keyword>' to find recipes by name or summary. keyword must be printable ASCII without whitespace or a leading hyphen."

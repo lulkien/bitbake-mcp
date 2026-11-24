@@ -1,4 +1,4 @@
-//! Request payloads of the twelve tools. Required arguments are declared as
+//! Request payloads of the fourteen tools. Required arguments are declared as
 //! such so the tool schema says so; a missing or wrongly typed argument fails
 //! deserialization before a handler runs.
 
@@ -130,6 +130,37 @@ pub(super) struct DevtoolCheckUpgradeStatusReq {
     pub(super) recipes: Option<Vec<String>>,
     #[serde(default)]
     pub(super) all: Option<bool>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolAddReq {
+    pub(super) recipe: String,
+    pub(super) fetch_uri: String,
+    #[serde(default)]
+    pub(super) version: Option<String>,
+    #[serde(default)]
+    pub(super) srcrev: Option<String>,
+    #[serde(default)]
+    pub(super) autorev: Option<bool>,
+    #[serde(default)]
+    pub(super) srcbranch: Option<String>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolUpgradeReq {
+    pub(super) recipe: String,
+    #[serde(default)]
+    pub(super) version: Option<String>,
+    #[serde(default)]
+    pub(super) srcrev: Option<String>,
+    #[serde(default)]
+    pub(super) srcbranch: Option<String>,
+    #[serde(default)]
+    pub(super) no_patch: Option<bool>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,
 }

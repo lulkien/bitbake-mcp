@@ -45,6 +45,76 @@ pub fn validate_recipe_name(name: &str) -> ValidationResult {
     }
 }
 
+fn invalid(field: &str, value: &str) -> ValidationError {
+    ValidationError {
+        error_code: "INVALID_ARGUMENT",
+        message: format!("Invalid {field}: {value}"),
+    }
+}
+
+pub fn validate_fetch_uri(uri: &str) -> ValidationResult {
+    let schemes = [
+        "http", "https", "ftp", "git", "gitsm", "svn", "npm", "crate",
+    ];
+    let scheme = uri.split_once(':').map(|(s, _)| s);
+    if uri.len() <= 2048
+        && !uri.starts_with('-')
+        && !uri
+            .chars()
+            .any(|c| c.is_whitespace() || c.is_control() || c == '\0')
+        && scheme.is_some_and(|s| schemes.contains(&s) && uri.len() > s.len() + 1)
+    {
+        Ok(())
+    } else {
+        Err(invalid("fetch_uri", uri))
+    }
+}
+
+pub fn validate_version(value: &str) -> ValidationResult {
+    if !value.is_empty()
+        && value.len() <= 64
+        && !value.starts_with('-')
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._+~-".contains(&b))
+    {
+        Ok(())
+    } else {
+        Err(invalid("version", value))
+    }
+}
+
+pub fn validate_srcrev(value: &str) -> ValidationResult {
+    if !value.is_empty()
+        && value.len() <= 64
+        && !value.starts_with('-')
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+    {
+        Ok(())
+    } else {
+        Err(invalid("srcrev", value))
+    }
+}
+
+pub fn validate_branch(value: &str) -> ValidationResult {
+    if !value.is_empty()
+        && value.len() <= 128
+        && !value.starts_with(['-', '/'])
+        && !value.contains("..")
+        && !value.contains("//")
+        && !value.ends_with('/')
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._/+-".contains(&b))
+    {
+        Ok(())
+    } else {
+        Err(invalid("srcbranch", value))
+    }
+}
+
 /// Require exactly one undeploy selector: a recipe name or `all=true`.
 pub fn validate_undeploy_target_selector(
     recipe: Option<&str>,
@@ -116,8 +186,9 @@ pub fn validate_upgrade_status_selector(
 #[cfg(test)]
 mod tests {
     use super::{
-        validate_package_list, validate_recipe_name, validate_search_keyword,
-        validate_undeploy_target_selector, validate_upgrade_status_selector,
+        validate_branch, validate_fetch_uri, validate_package_list, validate_recipe_name,
+        validate_search_keyword, validate_srcrev, validate_undeploy_target_selector,
+        validate_upgrade_status_selector, validate_version,
     };
 
     #[test]
@@ -179,6 +250,36 @@ mod tests {
     fn recipe_names_reject_shell_syntax_and_invalid_forms() {
         for name in ["a;b", "-x", "../x", "a b", "", "name..suffix"] {
             assert!(validate_recipe_name(name).is_err(), "accepted {name:?}");
+        }
+    }
+
+    #[test]
+    fn fetch_uri_validation() {
+        for uri in [
+            "https://example.com/src.tar.gz",
+            "git://example.com/repo;branch=main",
+        ] {
+            assert!(validate_fetch_uri(uri).is_ok(), "rejected {uri:?}");
+        }
+        for uri in [
+            "bad://host/repo",
+            "-git://host/repo",
+            "git://host/a b",
+            "git:",
+        ] {
+            assert!(validate_fetch_uri(uri).is_err(), "accepted {uri:?}");
+        }
+    }
+
+    #[test]
+    fn version_srcrev_and_branch_validation() {
+        assert!(validate_version("1.2+git").is_ok());
+        assert!(validate_version("-x").is_err());
+        assert!(validate_srcrev("deadbeef_1").is_ok());
+        assert!(validate_srcrev("-x").is_err());
+        assert!(validate_branch("release/1.2").is_ok());
+        for branch in ["-main", "/main", "a..b", "a//b", "main/", "a b"] {
+            assert!(validate_branch(branch).is_err(), "accepted {branch:?}");
         }
     }
 }
