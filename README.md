@@ -45,7 +45,7 @@ Runs `bitbake` or `devtool` in a build directory:
 `devtool_build`, `devtool_build_image`, `devtool_reset`,
 `devtool_deploy_target`, `devtool_undeploy_target`, `devtool_search`,
 `devtool_find_recipe`, `devtool_check_upgrade_status`, `devtool_configure_help`,
-`devtool_add`, `devtool_upgrade`
+`devtool_add`, `devtool_upgrade`, `devtool_update_recipe`, `devtool_finish`
 
 Each tool is documented in full below.
 
@@ -317,6 +317,46 @@ and `crate`. `srcrev` and `autorev` cannot be used together.
   "srcbranch": "stable/2", "no_patch": true }
 ```
 
+### `devtool_update_recipe`
+
+`devtool update-recipe [-m mode] [-a append] [-N] [-n] <recipe>` writes
+committed workspace changes to the original recipe's layer, or writes a
+bbappend into the existing absolute `append` layer directory. Modes are
+`patch`, `srcrev`, and `auto`; `dry_run: true` previews changes before writing.
+
+| argument | flag | default | meaning |
+|---|---|---|---|
+| `recipe` | positional | required | workspace recipe to update |
+| `mode` | `-m` | `auto` | update with patches, SRCREV, or automatic selection |
+| `append` | `-a` | omitted | write a bbappend into this existing absolute layer directory |
+| `dry_run` | `-N` | `false` | report planned changes without writing |
+| `no_remove` | `-n` | `false` | keep patches that would otherwise be removed |
+
+```json
+{ "recipe": "foo", "mode": "patch", "append": "/layers/meta-custom",
+  "dry_run": true, "no_remove": true }
+```
+
+### `devtool_finish`
+
+`devtool finish [-m mode] [-N] [-n] <recipe> <destination>` moves committed
+workspace changes into the named layer or absolute layer directory and removes
+the recipe from the workspace. Modes are `patch`, `srcrev`, and `auto`;
+`dry_run: true` previews the changes first.
+
+| argument | flag | default | meaning |
+|---|---|---|---|
+| `recipe` | positional | required | workspace recipe to finish |
+| `destination` | positional | required | layer name or absolute layer directory receiving the recipe |
+| `mode` | `-m` | `auto` | update with patches, SRCREV, or automatic selection |
+| `dry_run` | `-N` | `false` | report planned changes without writing or removing the workspace entry |
+| `no_clean` | `-n` | `false` | keep the recipe's sysroot output |
+
+```json
+{ "recipe": "foo", "destination": "meta-custom", "mode": "auto",
+  "dry_run": true, "no_clean": true }
+```
+
 ### `bitbake_recipe`
 
 `bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>]
@@ -492,7 +532,7 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 ## Layout
 
 - `src/main.rs` — entry wiring: logging, config, stdio serve
-- `src/tools/` — the fourteen tools: `mod.rs` (server type, tool declarations, run
+- `src/tools/` — the sixteen tools: `mod.rs` (server type, tool declarations, run
   path), `requests.rs` (request structs), `argv.rs` (argument building),
   `envelope.rs` (`ok` envelope, `elapsed_ms`), `handler.rs` (`ServerHandler`,
   call timing)

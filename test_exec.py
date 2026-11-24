@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the fourteen execution tools over MCP stdio.
+"""Test the sixteen execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
@@ -186,6 +186,29 @@ check("devtool_upgrade exact argv",
       "devtool-args:upgrade -V 2.0 -S deadbeef -B stable/2 --no-patch foo\n" in r.get("stdout", ""), str(r))
 r, _ = call("devtool_upgrade", {"recipe": "foo", "srcrev": "bad;rev", "build_dir": BUILD})
 check("devtool_upgrade rejects invalid srcrev", r.get("ok") is False and "devtool-args" not in r.get("stdout", ""), str(r))
+
+# Layer writers expose only the reviewed, non-destructive options.
+r, _ = call("devtool_update_recipe", {"recipe": "foo", "mode": "patch", "append": BUILD,
+                                       "dry_run": True, "no_remove": True, "build_dir": BUILD})
+check("devtool_update_recipe exact argv",
+      f"devtool-args:update-recipe -m patch -a {BUILD} -N -n foo\n" in r.get("stdout", ""), str(r))
+for label, append in (("layer name", "meta-foo"), ("relative directory", "rel/dir")):
+    r, _ = call("devtool_update_recipe", {"recipe": "foo", "append": append, "build_dir": BUILD})
+    check(f"devtool_update_recipe rejects {label}",
+          r.get("ok") is False and r.get("error_code") == "INVALID_ARGUMENT"
+          and "devtool-args" not in r.get("stdout", ""), str(r))
+r, _ = call("devtool_update_recipe", {"recipe": "foo", "append": GONE, "build_dir": BUILD})
+check("devtool_update_recipe rejects missing append directory",
+      r.get("ok") is False and "devtool-args" not in r.get("stdout", ""), str(r))
+r, _ = call("devtool_finish", {"recipe": "foo", "destination": "meta-foo", "mode": "srcrev",
+                               "dry_run": True, "no_clean": True, "build_dir": BUILD})
+check("devtool_finish exact argv",
+      "devtool-args:finish -m srcrev -N -n foo meta-foo\n" in r.get("stdout", ""), str(r))
+for destination in ("rel/dir", "-x"):
+    r, _ = call("devtool_finish", {"recipe": "foo", "destination": destination, "build_dir": BUILD})
+    check(f"devtool_finish rejects destination {destination}",
+          r.get("ok") is False and r.get("error_code") == "INVALID_ARGUMENT"
+          and "devtool-args" not in r.get("stdout", ""), str(r))
 
 # devtool status (no arguments beyond build_dir; the newline pins the end of
 # the argv so an appended flag would fail this check)

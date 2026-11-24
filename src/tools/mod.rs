@@ -1,4 +1,4 @@
-//! The fourteen tools: the server type, its tool declarations, and the shared
+//! The sixteen tools: the server type, its tool declarations, and the shared
 //! "resolve cwd, run, serialize" path every tool ends in.
 
 mod argv;
@@ -10,8 +10,9 @@ use crate::{config, digest, exec, validation};
 use envelope::validation_error;
 use requests::{
     BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolAddReq, DevtoolBuildImageReq,
-    DevtoolBuildReq, DevtoolCheckUpgradeStatusReq, DevtoolModifyReq, DevtoolRecipeReq,
-    DevtoolResetReq, DevtoolSearchReq, DevtoolUndeployTargetReq, DevtoolUpgradeReq,
+    DevtoolBuildReq, DevtoolCheckUpgradeStatusReq, DevtoolFinishReq, DevtoolModifyReq,
+    DevtoolRecipeReq, DevtoolResetReq, DevtoolSearchReq, DevtoolUndeployTargetReq,
+    DevtoolUpdateRecipeReq, DevtoolUpgradeReq,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -180,6 +181,58 @@ impl BitBakeServer {
         }
         let mut args = argv::devtool_upgrade(version, srcrev, srcbranch, no_patch);
         args.push(recipe);
+        self.run_cmd("devtool", args, build_dir).await
+    }
+
+    /// Write workspace changes back to the original recipe layer or append layer.
+    #[tool(
+        description = "Run 'devtool update-recipe [-m mode] [-a layer] [-N] [-n] <recipe>'. Writes committed workspace changes to the original recipe's layer, or a bbappend in append; run with dry_run=true first to preview changes."
+    )]
+    async fn devtool_update_recipe(
+        &self,
+        Parameters(DevtoolUpdateRecipeReq {
+            recipe,
+            mode,
+            append,
+            dry_run,
+            no_remove,
+            build_dir,
+        }): Parameters<DevtoolUpdateRecipeReq>,
+    ) -> String {
+        if let Err(v) = validation::validate_recipe_name(&recipe) {
+            return validation_error(&v);
+        }
+        let mut args = match argv::devtool_update_recipe(mode, append, dry_run, no_remove) {
+            Ok(args) => args,
+            Err(v) => return validation_error(&v),
+        };
+        args.push(recipe);
+        self.run_cmd("devtool", args, build_dir).await
+    }
+
+    /// Move a workspace recipe into a layer and remove its workspace entry.
+    #[tool(
+        description = "Run 'devtool finish [-m mode] [-N] [-n] <recipe> <destination>'. Writes the recipe changes into destination and removes the recipe from the workspace; run with dry_run=true first to preview changes."
+    )]
+    async fn devtool_finish(
+        &self,
+        Parameters(DevtoolFinishReq {
+            recipe,
+            destination,
+            mode,
+            dry_run,
+            no_clean,
+            build_dir,
+        }): Parameters<DevtoolFinishReq>,
+    ) -> String {
+        if let Err(v) = validation::validate_recipe_name(&recipe) {
+            return validation_error(&v);
+        }
+        if let Err(v) = validation::validate_layer_dest(&destination) {
+            return validation_error(&v);
+        }
+        let mut args = argv::devtool_finish(mode, dry_run, no_clean);
+        args.extend([recipe, destination]);
         self.run_cmd("devtool", args, build_dir).await
     }
 

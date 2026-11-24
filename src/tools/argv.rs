@@ -1,8 +1,8 @@
-//! Argument vectors of the fourteen tools. Pure: no I/O, no shell. User values are
+//! Argument vectors of the sixteen tools. Pure: no I/O, no shell. User values are
 //! validated before these run, except task names, which `bitbake_recipe`
 //! validates as it emits them.
 
-use super::requests::DumpSignatures;
+use super::requests::{DevtoolUpdateMode, DumpSignatures};
 use crate::validation::{self, ValidationError};
 
 /// Push the setscene-selection flags shared by the bitbake tools.
@@ -135,6 +135,58 @@ pub(super) fn devtool_upgrade(
         args.push("--no-patch".into());
     }
     args
+}
+
+/// `devtool update-recipe [-m mode] [-a <layer dir>] [-N] [-n] <recipe>`.
+pub(super) fn devtool_update_recipe(
+    mode: Option<DevtoolUpdateMode>,
+    append: Option<String>,
+    dry_run: Option<bool>,
+    no_remove: Option<bool>,
+) -> Result<Vec<String>, ValidationError> {
+    let mut args = vec!["update-recipe".into()];
+    if let Some(mode) = mode {
+        args.extend(["-m".into(), update_mode(mode)]);
+    }
+    if let Some(layer) = append {
+        validation::validate_abs_dir("append", &layer)?;
+        args.extend(["-a".into(), layer]);
+    }
+    if dry_run.unwrap_or(false) {
+        args.push("-N".into());
+    }
+    if no_remove.unwrap_or(false) {
+        args.push("-n".into());
+    }
+    Ok(args)
+}
+
+/// `devtool finish [-m mode] [-N] [-n] <recipe> <destination>`.
+pub(super) fn devtool_finish(
+    mode: Option<DevtoolUpdateMode>,
+    dry_run: Option<bool>,
+    no_clean: Option<bool>,
+) -> Vec<String> {
+    let mut args = vec!["finish".into()];
+    if let Some(mode) = mode {
+        args.extend(["-m".into(), update_mode(mode)]);
+    }
+    if dry_run.unwrap_or(false) {
+        args.push("-N".into());
+    }
+    if no_clean.unwrap_or(false) {
+        args.push("-n".into());
+    }
+    args
+}
+
+fn update_mode(mode: DevtoolUpdateMode) -> String {
+    match mode {
+        DevtoolUpdateMode::Patch => "patch",
+        DevtoolUpdateMode::Srcrev => "srcrev",
+        DevtoolUpdateMode::Auto => "auto",
+    }
+    .into()
 }
 
 /// `devtool reset [-n]`; the caller appends the recipe.

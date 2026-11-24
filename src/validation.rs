@@ -186,9 +186,9 @@ pub fn validate_upgrade_status_selector(
 #[cfg(test)]
 mod tests {
     use super::{
-        validate_branch, validate_fetch_uri, validate_package_list, validate_recipe_name,
-        validate_search_keyword, validate_srcrev, validate_undeploy_target_selector,
-        validate_upgrade_status_selector, validate_version,
+        validate_abs_dir, validate_branch, validate_fetch_uri, validate_layer_dest,
+        validate_package_list, validate_recipe_name, validate_search_keyword, validate_srcrev,
+        validate_undeploy_target_selector, validate_upgrade_status_selector, validate_version,
     };
 
     #[test]
@@ -282,6 +282,28 @@ mod tests {
             assert!(validate_branch(branch).is_err(), "accepted {branch:?}");
         }
     }
+
+    #[test]
+    fn absolute_directory_validation() {
+        let cwd = std::env::current_dir().unwrap();
+        let existing = cwd.to_string_lossy();
+        assert!(validate_abs_dir("append", &existing).is_ok());
+        assert!(validate_abs_dir("append", "relative/path").is_err());
+        assert!(validate_abs_dir("append", "bad\0path").is_err());
+        let missing = cwd.join("bitbake-mcp-test-directory-that-does-not-exist");
+        assert!(validate_abs_dir("append", &missing.to_string_lossy()).is_err());
+        let file = cwd.join("Cargo.toml");
+        assert!(validate_abs_dir("append", &file.to_string_lossy()).is_err());
+    }
+
+    #[test]
+    fn layer_destination_accepts_names_or_absolute_directories() {
+        let cwd = std::env::current_dir().unwrap();
+        assert!(validate_layer_dest("meta-foo").is_ok());
+        assert!(validate_layer_dest(&cwd.to_string_lossy()).is_ok());
+        assert!(validate_layer_dest("rel/dir").is_err());
+        assert!(validate_layer_dest("-x").is_err());
+    }
 }
 
 /// Validate an `user@host` target for `devtool deploy-target`. The host part
@@ -338,8 +360,13 @@ pub fn validate_task(task: &str) -> ValidationResult {
 /// byte, and an existing directory — the init script creates `conf/` in it, so
 /// it must not be conjured by a typo.
 pub fn validate_build_dir(dir: &str) -> ValidationResult {
-    let path = std::path::Path::new(dir);
-    let problem = if dir.contains('\0') || !path.is_absolute() {
+    validate_abs_dir("build_dir", dir)
+}
+
+/// Require an absolute, existing directory without a NUL byte.
+pub fn validate_abs_dir(field: &str, value: &str) -> ValidationResult {
+    let path = std::path::Path::new(value);
+    let problem = if value.contains('\0') || !path.is_absolute() {
         Some("must be an absolute path")
     } else if !path.is_dir() {
         Some("is not an existing directory")
@@ -350,7 +377,16 @@ pub fn validate_build_dir(dir: &str) -> ValidationResult {
         None => Ok(()),
         Some(why) => Err(ValidationError {
             error_code: "INVALID_ARGUMENT",
-            message: format!("Invalid build_dir ({why}): {}", dir.escape_debug()),
+            message: format!("Invalid {field} ({why}): {}", value.escape_debug()),
         }),
+    }
+}
+
+/// Validate devtool finish's layer name or absolute layer directory.
+pub fn validate_layer_dest(destination: &str) -> ValidationResult {
+    if validate_recipe_name(destination).is_ok() {
+        Ok(())
+    } else {
+        validate_abs_dir("destination", destination)
     }
 }

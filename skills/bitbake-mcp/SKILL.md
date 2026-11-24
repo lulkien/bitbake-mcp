@@ -12,7 +12,7 @@ metadata:
 
 # bitbake-mcp: BitBake/Yocto MCP server
 
-Fourteen MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
+Sixteen MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
 while those fit 2 KiB, and a `digest` (≤ 4 KiB) when they do not. **A build's
 full output is in the log file, not in the result** — the `digest` says what
@@ -32,6 +32,8 @@ failed; open the log only when it is not enough.
 - Reading configure options for a workspace recipe: `devtool_configure_help`.
 - Creating a recipe from a fetch URI: `devtool_add`.
 - Upgrading a workspace recipe: `devtool_upgrade`.
+- Writing committed workspace changes back to a layer: `devtool_update_recipe`.
+- Finishing a workspace recipe into a layer: `devtool_finish`.
 - Any task where you would otherwise run `bitbake` or `devtool` in a terminal.
 
 Don't use for: setting up a Yocto build tree or editing recipes (edit files
@@ -68,6 +70,8 @@ explicitly when several build trees exist):
 | `devtool_configure_help` | `recipe` | print workspace configure options without a pager |
 | `devtool_add` | `recipe`, `fetch_uri`, `version?`, `srcrev?` or `autorev?`, `srcbranch?` | create a workspace recipe from a fetch URI |
 | `devtool_upgrade` | `recipe`, `version?`, `srcrev?`, `srcbranch?`, `no_patch?` | upgrade a recipe in the workspace |
+| `devtool_update_recipe` | `recipe`, `mode?`, `append?` (absolute directory), `dry_run?`, `no_remove?` | write workspace changes to the original layer or an append layer; dry-run first |
+| `devtool_finish` | `recipe`, `destination` (layer name or absolute directory), `mode?`, `dry_run?`, `no_clean?` | write changes into a layer and remove the workspace entry; dry-run first |
 
 ## Workflows
 

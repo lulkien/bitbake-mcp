@@ -1,4 +1,4 @@
-//! Request payloads of the fourteen tools. Required arguments are declared as
+//! Request payloads of the sixteen tools. Required arguments are declared as
 //! such so the tool schema says so; a missing or wrongly typed argument fails
 //! deserialization before a handler runs.
 
@@ -161,6 +161,44 @@ pub(super) struct DevtoolUpgradeReq {
     pub(super) srcbranch: Option<String>,
     #[serde(default)]
     pub(super) no_patch: Option<bool>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(super) enum DevtoolUpdateMode {
+    Patch,
+    Srcrev,
+    Auto,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolUpdateRecipeReq {
+    pub(super) recipe: String,
+    #[serde(default)]
+    pub(super) mode: Option<DevtoolUpdateMode>,
+    /// Existing absolute layer directory receiving a bbappend.
+    #[serde(default)]
+    pub(super) append: Option<String>,
+    #[serde(default)]
+    pub(super) dry_run: Option<bool>,
+    #[serde(default)]
+    pub(super) no_remove: Option<bool>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolFinishReq {
+    pub(super) recipe: String,
+    pub(super) destination: String,
+    #[serde(default)]
+    pub(super) mode: Option<DevtoolUpdateMode>,
+    #[serde(default)]
+    pub(super) dry_run: Option<bool>,
+    #[serde(default)]
+    pub(super) no_clean: Option<bool>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,
 }
