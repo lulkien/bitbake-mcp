@@ -1,4 +1,4 @@
-//! The seven tools: the server type, its tool declarations, and the shared
+//! The eight tools: the server type, its tool declarations, and the shared
 //! "resolve cwd, run, serialize" path every tool ends in.
 
 mod argv;
@@ -10,7 +10,7 @@ use crate::{config, digest, exec, validation};
 use envelope::validation_error;
 use requests::{
     BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolBuildImageReq, DevtoolBuildReq,
-    DevtoolModifyReq, DevtoolResetReq,
+    DevtoolModifyReq, DevtoolResetReq, DevtoolUndeployTargetReq,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -218,7 +218,7 @@ impl BitBakeServer {
     }
 
     /// Run `devtool deploy-target` in the build directory.
-    #[tool(description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22).")]
+    #[tool(description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), dry_run (-n, default false), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22).")]
     async fn devtool_deploy_target(
         &self,
         Parameters(DeployTargetReq {
@@ -226,13 +226,14 @@ impl BitBakeServer {
             target,
             strip,
             no_host_check,
+            dry_run,
             no_preserve,
             no_check_space,
             port,
             build_dir,
         }): Parameters<DeployTargetReq>,
     ) -> String {
-        // Command: devtool deploy-target [-c] [-p] [--no-check-space]
+        // Command: devtool deploy-target [-c] [-n] [-p] [--no-check-space]
         //          [-P <port>] [-S|--no-strip] <recipe> <target>
         if let Some(port) = port {
             if let Err(v) = validation::validate_port(port) {
@@ -245,7 +246,45 @@ impl BitBakeServer {
         if let Err(v) = validation::validate_target(&target) {
             return validation_error(&v);
         }
-        let args = argv::deploy_target(recipe, target, strip, no_host_check, no_preserve, no_check_space, port);
+        let args = argv::deploy_target(
+            recipe,
+            target,
+            strip,
+            no_host_check,
+            dry_run,
+            no_preserve,
+            no_check_space,
+            port,
+        );
+        self.run_cmd("devtool", args, build_dir).await
+    }
+
+    /// Remove a recipe's deployed files from a target, or all deployed files.
+    #[tool(description = "Run 'devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>' to remove previously deployed files from a target. Set exactly one of recipe or all=true; all=true removes every recipe previously deployed to that target. no_host_check defaults to true; dry_run=true lists files without removing them; port defaults to 22.")]
+    async fn devtool_undeploy_target(
+        &self,
+        Parameters(DevtoolUndeployTargetReq {
+            recipe,
+            all,
+            target,
+            no_host_check,
+            dry_run,
+            port,
+            build_dir,
+        }): Parameters<DevtoolUndeployTargetReq>,
+    ) -> String {
+        if let Err(v) = validation::validate_undeploy_target_selector(recipe.as_deref(), all) {
+            return validation_error(&v);
+        }
+        if let Some(port) = port {
+            if let Err(v) = validation::validate_port(port) {
+                return validation_error(&v);
+            }
+        }
+        if let Err(v) = validation::validate_target(&target) {
+            return validation_error(&v);
+        }
+        let args = argv::undeploy_target(recipe, all, target, no_host_check, dry_run, port);
         self.run_cmd("devtool", args, build_dir).await
     }
 }

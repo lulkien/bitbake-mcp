@@ -43,7 +43,7 @@ cp -R skills/bitbake-mcp ~/.hermes/skills/project/
 Runs `bitbake` or `devtool` in a build directory:
 `bitbake_recipe`, `devtool_status`, `devtool_modify`,
 `devtool_build`, `devtool_build_image`, `devtool_reset`,
-`devtool_deploy_target`
+`devtool_deploy_target`, `devtool_undeploy_target`
 
 Each tool is documented in full below.
 
@@ -219,12 +219,14 @@ false: reset leaves the recipe's sysroot output in place. Set
 { "recipe": "myapp", "target": "root@192.168.1.5", "build_dir": "/path/to/build" }
 { "recipe": "myapp", "target": "root@192.168.1.5", "port": 2222, "strip": true,
   "no_host_check": false, "no_preserve": false, "no_check_space": false }
+{ "recipe": "myapp", "target": "root@192.168.1.5", "dry_run": true }
 ```
 
 | argument | flag | default |
 |---|---|---|
 | `port` | `-P <port>` | `22` |
 | `no_host_check` | `-c` | `true` |
+| `dry_run` | `-n` | `false` |
 | `no_preserve` | `-p` | `true` |
 | `no_check_space` | `--no-check-space` | `true` |
 | `strip` | `-S` when true, `--no-strip` when false | `false` |
@@ -236,6 +238,23 @@ emitted argv does not depend on a `[Deploy]` default in `conf/devtool.conf`.
 `do_install` output, not just its main package — when a recipe carries a large
 debug/ptest payload, shipping the packages instead (`bitbake <recipe> -c
 package_write_ipk`) is far smaller.
+
+### `devtool_undeploy_target`
+
+`devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>` —
+remove a recipe's previously deployed files from a target, or remove all
+previously deployed files from the target.
+
+```json
+{ "recipe": "myapp", "target": "root@192.168.1.5" }
+{ "all": true, "target": "root@192.168.1.5", "dry_run": true }
+```
+
+Exactly one of `recipe` or `all: true` is required. `no_host_check` defaults to
+true and passes `-c`; `dry_run` defaults to false and passes `-n`; `port`
+defaults to 22 and passes `-P`. A dry run lists the files that would be removed
+without changing the target. The command does not expose custom SSH executables,
+SSH key paths, or verbose status output.
 
 ### `bitbake_recipe`
 
@@ -412,7 +431,7 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 ## Layout
 
 - `src/main.rs` — entry wiring: logging, config, stdio serve
-- `src/tools/` — the seven tools: `mod.rs` (server type, tool declarations, run
+- `src/tools/` — the eight tools: `mod.rs` (server type, tool declarations, run
   path), `requests.rs` (request structs), `argv.rs` (argument building),
   `envelope.rs` (`ok` envelope, `elapsed_ms`), `handler.rs` (`ServerHandler`,
   call timing)

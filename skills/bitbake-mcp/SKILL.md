@@ -12,7 +12,7 @@ metadata:
 
 # bitbake-mcp: BitBake/Yocto MCP server
 
-Seven MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
+Eight MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
 while those fit 2 KiB, and a `digest` (≤ 4 KiB) when they do not. **A build's
 full output is in the log file, not in the result** — the `digest` says what
@@ -25,6 +25,7 @@ failed; open the log only when it is not enough.
 - Modifying a recipe from source: `devtool status` → `devtool modify` →
   `devtool build` → `devtool reset`.
 - Getting a build onto a board: `devtool deploy_target`.
+- Removing files previously deployed to a board: `devtool_undeploy_target`.
 - Any task where you would otherwise run `bitbake` or `devtool` in a terminal.
 
 Don't use for: setting up a Yocto build tree or editing recipes (edit files
@@ -53,7 +54,8 @@ explicitly when several build trees exist):
 | `devtool_build` | `recipe`, `clean?`, `disable_parallel_make?` | `devtool build [-c] [-s] <recipe>`; `clean:true` cleans build results first; `disable_parallel_make:true` passes `-s` |
 | `devtool_build_image` | `image` (required), `add_packages?` | `devtool build-image [-p <packages>] <image>`; `add_packages` is a comma-separated recipe list |
 | `devtool_reset` | `recipe`, `no_clean?` | undo a modify; passes `-n` unless `no_clean:false` |
-| `devtool_deploy_target` | `recipe`, `target` (`user@host`), `port?`, `strip?`, `no_host_check?`, `no_preserve?`, `no_check_space?` | deploy the recipe's `do_install` output to a board |
+| `devtool_deploy_target` | `recipe`, `target` (`user@host`), `port?`, `strip?`, `no_host_check?`, `dry_run?`, `no_preserve?`, `no_check_space?` | deploy the recipe's `do_install` output to a board; `dry_run:true` passes `-n` to list files without deploying |
+| `devtool_undeploy_target` | `recipe?` or `all:true`, `target` (`user@host`), `port?`, `no_host_check?`, `dry_run?` | remove a recipe's deployed files or all deployed files from the target |
 
 ## Workflows
 
@@ -62,6 +64,10 @@ modified) → `devtool_modify` → edit the extracted source tree → `devtool_b
 → `devtool_deploy_target` with `target: "root@<ip>"` and `port` if non-22 →
 `devtool_reset` when done. `devtool_reset` defaults to `-n` (leaves the sysroot
 output); pass `no_clean: false` only when the stale sysroot is the problem.
+
+Use `devtool_undeploy_target` to remove the files after deployment; pass exactly
+one of `recipe` or `all: true`. Set `dry_run: true` first to list the files that
+would be removed.
 
 To build an image containing workspace packages, use `devtool_build_image` with
 the required image name and, optionally, `add_packages: "foo,bar"`.
@@ -87,9 +93,8 @@ helps explain why a task would rerun.
 
 ## Pitfalls
 
-- **`devtool add` has no tool here.** The server exposes modify/build/status/reset/
-  deploy-target and bitbake_recipe only, so `devtool add <name> <srctree>` (and any
-  other unexposed devtool subcommand) is the one case that runs in `terminal`,
+- **`devtool add` has no tool here.** Use the tools in the Tool map for exposed
+  commands; `devtool add <name> <srctree>` and any other unexposed subcommand run in `terminal`,
   replicating the server's own invocation exactly:
   `cd <build_dir> && bash -c 'source <init_script> . || exit 1; devtool add <name> <srctree>'`.
   Everything after that — editing the generated `.bb`, building, deploying — goes

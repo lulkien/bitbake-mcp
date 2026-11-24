@@ -45,6 +45,22 @@ pub fn validate_recipe_name(name: &str) -> ValidationResult {
     }
 }
 
+/// Require exactly one undeploy selector: a recipe name or `all=true`.
+pub fn validate_undeploy_target_selector(
+    recipe: Option<&str>,
+    all: Option<bool>,
+) -> ValidationResult {
+    let all = all.unwrap_or(false);
+    match (recipe, all) {
+        (Some(recipe), false) => validate_recipe_name(recipe),
+        (None, true) => Ok(()),
+        _ => Err(ValidationError {
+            error_code: "INVALID_ARGUMENT",
+            message: "Exactly one of recipe or all=true is required".into(),
+        }),
+    }
+}
+
 /// Validate a comma-separated list of recipe names passed to build-image `-p`.
 pub fn validate_package_list(packages: &str) -> ValidationResult {
     if packages
@@ -62,7 +78,19 @@ pub fn validate_package_list(packages: &str) -> ValidationResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_package_list, validate_recipe_name};
+    use super::{
+        validate_package_list, validate_recipe_name, validate_undeploy_target_selector,
+    };
+
+    #[test]
+    fn undeploy_selector_requires_exactly_one_recipe_or_all() {
+        assert!(validate_undeploy_target_selector(Some("busybox"), None).is_ok());
+        assert!(validate_undeploy_target_selector(None, Some(true)).is_ok());
+        assert!(validate_undeploy_target_selector(Some("busybox"), Some(true)).is_err());
+        assert!(validate_undeploy_target_selector(None, None).is_err());
+        assert!(validate_undeploy_target_selector(None, Some(false)).is_err());
+        assert!(validate_undeploy_target_selector(Some("-bad"), None).is_err());
+    }
 
     #[test]
     fn package_lists_accept_recipe_names() {

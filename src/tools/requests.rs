@@ -1,4 +1,4 @@
-//! Request payloads of the seven tools. Required arguments are declared as
+//! Request payloads of the eight tools. Required arguments are declared as
 //! such so the tool schema says so; a missing or wrongly typed argument fails
 //! deserialization before a handler runs.
 
@@ -30,6 +30,9 @@ pub(super) struct DeployTargetReq {
     /// `true` passes `-c` (disable ssh host key checking). Defaults to true.
     #[serde(default)]
     pub(super) no_host_check: Option<bool>,
+    /// `true` passes `-n` to list files without deploying them.
+    #[serde(default)]
+    pub(super) dry_run: Option<bool>,
     /// `true` passes `-p` (overwrite target files instead of preserving
     /// them). Defaults to true.
     #[serde(default)]
@@ -38,6 +41,30 @@ pub(super) struct DeployTargetReq {
     /// deploying). Defaults to true.
     #[serde(default)]
     pub(super) no_check_space: Option<bool>,
+    /// SSH port for the connection (`-P`), 1-65535. Defaults to 22.
+    #[serde(default)]
+    #[schemars(range(min = 1))]
+    pub(super) port: Option<u16>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolUndeployTargetReq {
+    /// Recipe previously deployed to the target; mutually exclusive with `all`.
+    #[serde(default)]
+    pub(super) recipe: Option<String>,
+    /// `true` passes `-a` to undeploy every recipe from the target.
+    #[serde(default)]
+    pub(super) all: Option<bool>,
+    /// `user@host` target from which to remove deployed files.
+    pub(super) target: String,
+    /// `true` passes `-c` to disable ssh host key checking.
+    #[serde(default)]
+    pub(super) no_host_check: Option<bool>,
+    /// `true` passes `-n` to list files without removing them.
+    #[serde(default)]
+    pub(super) dry_run: Option<bool>,
     /// SSH port for the connection (`-P`), 1-65535. Defaults to 22.
     #[serde(default)]
     #[schemars(range(min = 1))]

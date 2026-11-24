@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the seven execution tools over MCP stdio.
+"""Test the eight execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
@@ -243,6 +243,11 @@ r, _ = call("devtool_deploy_target", {"recipe": "myapp", "target": "user@192.168
 check("deploy_target default argv",
       "devtool-args:deploy-target -c -p --no-check-space -P 22 --no-strip myapp user@192.168.1.5" in r.get("stdout",""),
       str(r.get("stdout")))
+r, _ = call("devtool_deploy_target", {"recipe": "myapp", "target": "user@192.168.1.5",
+                                     "dry_run": True, "build_dir": BUILD})
+check("deploy_target -n argv",
+      "devtool-args:deploy-target -c -n -p --no-check-space -P 22 --no-strip myapp user@192.168.1.5"
+      in r.get("stdout", ""), str(r.get("stdout")))
 
 # devtool deploy-target -S / --no-strip
 r, _ = call("devtool_deploy_target", {"recipe": "myapp", "target": "user@192.168.1.5", "strip": True, "build_dir": BUILD})
@@ -265,6 +270,31 @@ r, _ = call("devtool_deploy_target", {"recipe": "myapp", "target": "user@192.168
 check("deploy_target flags off argv",
       "devtool-args:deploy-target -P 22 --no-strip myapp user@192.168.1.5" in r.get("stdout",""),
       str(r.get("stdout")))
+
+# devtool undeploy-target flags follow deploy.py's parser order: -c, -a, -n, -P.
+r, _ = call("devtool_undeploy_target", {"recipe": "myapp", "target": "user@192.168.1.5",
+                                         "no_host_check": True, "dry_run": True,
+                                         "port": 2222, "build_dir": BUILD})
+check("undeploy_target recipe argv",
+      "devtool-args:undeploy-target -c -n -P 2222 myapp user@192.168.1.5\n"
+      in r.get("stdout", ""), str(r.get("stdout")))
+r, _ = call("devtool_undeploy_target", {"all": True, "target": "user@192.168.1.5",
+                                         "no_host_check": True, "dry_run": True,
+                                         "port": 2222, "build_dir": BUILD})
+check("undeploy_target all argv",
+      "devtool-args:undeploy-target -c -a -n -P 2222 user@192.168.1.5\n"
+      in r.get("stdout", ""), str(r.get("stdout")))
+for label, selectors in (("both", {"recipe": "myapp", "all": True}), ("neither", {})):
+    r, _ = call("devtool_undeploy_target", {**selectors, "target": "user@192.168.1.5",
+                                             "build_dir": BUILD})
+    check(f"undeploy_target {label} selector rejected",
+          r.get("ok") is False and r.get("error_code") == "INVALID_ARGUMENT"
+          and "devtool-args" not in r.get("stdout", ""), str(r))
+r, _ = call("devtool_undeploy_target", {"recipe": "myapp", "target": "user@host;ls",
+                                         "build_dir": BUILD})
+check("undeploy_target invalid target rejected",
+      r.get("ok") is False and r.get("error_code") == "INVALID_ARGUMENT"
+      and "devtool-args" not in r.get("stdout", ""), str(r))
 send({"jsonrpc": "2.0", "id": 11, "method": "tools/call",
       "params": {"name": "devtool_deploy_target",
                  "arguments": {"recipe": "myapp", "target": "user@192.168.1.5", "port": "abc", "build_dir": BUILD}}})

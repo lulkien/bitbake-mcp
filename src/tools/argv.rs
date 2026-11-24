@@ -1,4 +1,4 @@
-//! Argument vectors of the seven tools. Pure: no I/O, no shell. User values are
+//! Argument vectors of the eight tools. Pure: no I/O, no shell. User values are
 //! validated before these run, except task names, which `bitbake_recipe`
 //! validates as it emits them.
 
@@ -131,6 +131,7 @@ pub(super) fn deploy_target(
     target: String,
     strip: Option<bool>,
     no_host_check: Option<bool>,
+    dry_run: Option<bool>,
     no_preserve: Option<bool>,
     no_check_space: Option<bool>,
     port: Option<u16>,
@@ -142,6 +143,9 @@ pub(super) fn deploy_target(
     if flag(no_host_check, true) {
         args.push("-c".to_string());
     }
+    if flag(dry_run, false) {
+        args.push("-n".to_string());
+    }
     if flag(no_preserve, true) {
         args.push("-p".to_string());
     }
@@ -152,6 +156,34 @@ pub(super) fn deploy_target(
     args.push(port.unwrap_or(22).to_string());
     args.push(if flag(strip, false) { "-S" } else { "--no-strip" }.to_string());
     args.push(recipe);
+    args.push(target);
+    args
+}
+
+/// `devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <target>`.
+pub(super) fn undeploy_target(
+    recipe: Option<String>,
+    all: Option<bool>,
+    target: String,
+    no_host_check: Option<bool>,
+    dry_run: Option<bool>,
+    port: Option<u16>,
+) -> Vec<String> {
+    let mut args = vec!["undeploy-target".to_string()];
+    if no_host_check.unwrap_or(true) {
+        args.push("-c".to_string());
+    }
+    if all.unwrap_or(false) {
+        args.push("-a".to_string());
+    }
+    if dry_run.unwrap_or(false) {
+        args.push("-n".to_string());
+    }
+    args.push("-P".to_string());
+    args.push(port.unwrap_or(22).to_string());
+    if let Some(recipe) = recipe {
+        args.push(recipe);
+    }
     args.push(target);
     args
 }
