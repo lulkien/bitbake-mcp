@@ -11,16 +11,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import shims
 
 REPO = os.path.dirname(os.path.abspath(__file__))
-BIN = os.environ.get("BB_BIN", os.path.join(REPO, "target", "release", "mcp-yocto"))
+BIN = os.environ.get("BB_BIN", os.path.join(REPO, "target", "release", "bitbake-mcp"))
 if not os.path.exists(BIN):
     sys.exit(f"missing server binary: {BIN}\nrun: cargo build --release  (or set BB_BIN)")
 
-BASE = tempfile.mkdtemp(prefix="mcp-yocto-exec-")
+BASE = tempfile.mkdtemp(prefix="bitbake-mcp-exec-")
 SH = shims.install(BASE)
 BUILD = SH["build_dir"]
 GONE = os.path.join(BASE, "does-not-exist")
 # log dir the server derives from HOME (shims.server_env isolates HOME under BASE)
-LOG_DIR = os.path.join(SH["home"], ".cache", "mcp-yocto")
+LOG_DIR = os.path.join(SH["home"], ".cache", "bitbake-mcp")
 FLOOD = 300
 
 ENV = shims.server_env(SH)

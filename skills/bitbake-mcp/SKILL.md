@@ -1,6 +1,6 @@
 ---
-name: mcp-yocto
-description: Drive Yocto builds and devtool workflows via mcp-yocto.
+name: bitbake-mcp
+description: Drive Yocto builds and devtool workflows via bitbake-mcp.
 version: 0.1.0
 author: Kien Hoang Luu (kien1.luu), Hermes Agent
 license: MIT
@@ -10,7 +10,7 @@ metadata:
     tags: [yocto, bitbake, devtool, mcp, embedded]
 ---
 
-# mcp-yocto: BitBake/Yocto MCP server
+# bitbake-mcp: BitBake/Yocto MCP server
 
 Six MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
@@ -32,10 +32,10 @@ those.
 
 ## Prerequisites
 
-- `mcp-yocto` binary installed and registered with the MCP client, tools
-  visible as `mcp__mcp_yocto__*` (or plain names for non-Hermes clients). If
+- `bitbake-mcp` binary installed and registered with the MCP client, tools
+  visible as `mcp__bitbake_mcp__*` (or plain names for non-Hermes clients). If
   missing: the repo's `AGENTS.md` has the install/register steps.
-- `~/.config/mcp-yocto.toml` (or `MCP_YOCTO_CONFIG`) must point `init_script` at
+- `~/.config/bitbake-mcp.toml` (or `BITBAKE_MCP_CONFIG`) must point `init_script` at
   `oe-init-build-env` and `build_dir` at a build tree. Without it every tool
   fails closed with `ok:false` — that is config, not a broken recipe.
 

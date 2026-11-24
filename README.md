@@ -1,27 +1,24 @@
-# mcp-yocto
+# bitbake-mcp
 
 A deterministic [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server for BitBake/Yocto, written in Rust: it runs `bitbake` and `devtool` commands in a build directory and returns their output as structured JSON.
 
 ```bash
-git clone http://civsl.lge.com/gitea/kien1.luu/mcp-yocto.git
+git clone https://github.com/lulkien/bitbake-mcp.git
 ```
-
-Clone over http (Gitea) — no key needed. The ssh remote
-(`ssh://git@10.218.140.120:2222/kien1.luu/mcp-yocto.git`) is owner-only.
 
 ## Install
 
 ```bash
-cargo install --path . --locked    # -> ~/.cargo/bin/mcp-yocto
+cargo install --path . --locked    # -> ~/.cargo/bin/bitbake-mcp
 ```
 
 Register that binary as a **stdio** MCP server (absolute path, no arguments).
 `AGENTS.md` is the full agent-followable install: toolchain, config file,
-client registration, verification, and the usage skill. `skills/mcp-yocto/SKILL.md`
+client registration, verification, and the usage skill. `skills/bitbake-mcp/SKILL.md`
 teaches an agent how to drive the tools:
 
 ```bash
-cp -R skills/mcp-yocto ~/.hermes/skills/project/
+cp -R skills/bitbake-mcp ~/.hermes/skills/project/
 ```
 
 **Design rules:**
@@ -55,15 +52,15 @@ Each tool is documented in full below.
 cargo build --release
 ```
 
-The binary is `target/release/mcp-yocto`.
+The binary is `target/release/bitbake-mcp`.
 
 ## Claude Desktop configuration
 
 ```json
 {
   "mcpServers": {
-    "mcp-yocto": {
-      "command": "/absolute/path/to/mcp-yocto/target/release/mcp-yocto"
+    "bitbake-mcp": {
+      "command": "/absolute/path/to/bitbake-mcp/target/release/bitbake-mcp"
     }
   }
 }
@@ -81,18 +78,18 @@ Restart Claude Desktop after editing.
 The commands need a working Yocto environment (bitbake/devtool on PATH with the
 correct BBPATH). Load config from the first existing source:
 
-1. `MCP_YOCTO_CONFIG` env var → path to a config file
-2. `./mcp-yocto.toml` in the working directory
-3. `~/.config/mcp-yocto.toml`
+1. `BITBAKE_MCP_CONFIG` env var → path to a config file
+2. `./bitbake-mcp.toml` in the working directory
+3. `~/.config/bitbake-mcp.toml`
 
-`mcp-yocto.example.toml` in this repo is a commented copy of that file:
+`bitbake-mcp.example.toml` in this repo is a commented copy of that file:
 
 ```bash
-cp mcp-yocto.example.toml mcp-yocto.toml
+cp bitbake-mcp.example.toml bitbake-mcp.toml
 ```
 
 ```toml
-# mcp-yocto.toml
+# bitbake-mcp.toml
 init_script = "/home/worker/atlas/oe-init-build-env"
 build_dir  = "/home/worker/atlas/build"
 ```
@@ -130,7 +127,7 @@ command is spawned. Returns:
   "stdout": "...",       // omitted when the stream is empty or over 2 KiB
   "stderr": "...",       // same rule
   "command": "devtool modify busybox",
-  "log": "/home/you/.cache/mcp-yocto/1790308139198-devtool-modify-busybox.log",
+  "log": "/home/you/.cache/bitbake-mcp/1790308139198-devtool-modify-busybox.log",
   "log_bytes": 6378,     // size of that log: the "is it worth reading?" signal
   "digest": { ... },     // only when a stream is over 2 KiB; see Digest
   "elapsed_ms": 128430   // wall-clock duration of this tool call, milliseconds
@@ -284,7 +281,7 @@ and the result points at it with `log` (absolute path) and `log_bytes` (size).
 The same streams are also returned inline while they fit 2 KiB, so short answers
 arrive ready to read while a build's banner and sstate statistics do not:
 
-- **directory** — `$XDG_CACHE_HOME/mcp-yocto`, else `$HOME/.cache/mcp-yocto`
+- **directory** — `$XDG_CACHE_HOME/bitbake-mcp`, else `$HOME/.cache/bitbake-mcp`
 - **name** — `<epoch-millis>-<command-slug>.log` (the name sorts
   chronologically, which is what retention relies on):
   `1790308139198-bitbake--c-compile-zlib.log`. The file is created exclusively;
@@ -300,7 +297,7 @@ arrive ready to read while a build's banner and sstate statistics do not:
   directory) the result carries the output inline regardless of size. If a write
   fails mid-run the partial log is kept, the affected stream is returned
   inline with a note that the log is incomplete, a gap in that text is marked
-  `[mcp-yocto: N bytes omitted here; they are in <file>]`, and a stderr scratch
+  `[bitbake-mcp: N bytes omitted here; they are in <file>]`, and a stderr scratch
   file (`<log>.err`) that holds the only complete copy is kept and named in the
   note. `.err` files count toward the 200-file retention
 - **cancellation** — a cancelled request kills the command's whole process
@@ -311,7 +308,7 @@ failing command, the failed task's own log path and the exit code in it. Search
 for `^ERROR:` first and read that region rather than the whole file:
 
 ```bash
-grep -n '^ERROR:' /home/you/.cache/mcp-yocto/1790308139198-bitbake--c-compile-zlib.log
+grep -n '^ERROR:' /home/you/.cache/bitbake-mcp/1790308139198-bitbake--c-compile-zlib.log
 ```
 
 Usually the `digest` already answers that question.
@@ -403,26 +400,26 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 - `tests/fixtures/` — captured real logs (paths rewritten to `/build`), their
   golden `*.digest.json`, and real compiler error lines for `shrink`
 - `src/validation.rs` — recipe/target/task validation
-- `mcp-yocto.example.toml` — commented config template
+- `bitbake-mcp.example.toml` — commented config template
 - `AGENTS.md` — agent-facing install/register path and repo conventions
-- `skills/mcp-yocto/SKILL.md` — usage skill (tool map, workflows, pitfalls)
+- `skills/bitbake-mcp/SKILL.md` — usage skill (tool map, workflows, pitfalls)
 - `shims.py` — shared test fixtures (fake bitbake/devtool/oe-init-build-env)
 - `test_exec.py`, `test_config.py` — stdio test suites (see Testing)
 
 ## Testing
 
 ```bash
-cargo build --release               # tests use target/release/mcp-yocto (override with BB_BIN)
+cargo build --release               # tests use target/release/bitbake-mcp (override with BB_BIN)
 cargo test --release    # digest unit tests + golden fixtures (UPDATE_GOLDEN=1 rewrites them)
 python3 test_exec.py    # argv/cwd of every execution tool + the output-log contract
-python3 test_config.py  # init_script sourcing via MCP_YOCTO_CONFIG
+python3 test_config.py  # init_script sourcing via BITBAKE_MCP_CONFIG
 ```
 
 Digest size over a directory of real logs (prints p50/p90/max per outcome and
 fails if any digest is over 4096 bytes):
 
 ```bash
-DIGEST_CORPUS=~/.cache/mcp-yocto cargo test --release corpus -- --ignored --nocapture
+DIGEST_CORPUS=~/.cache/bitbake-mcp cargo test --release corpus -- --ignored --nocapture
 ```
 
 The shim-based tests create their own fixtures in a temp dir (`shims.py`:
@@ -436,7 +433,7 @@ over-cap path (stream omitted, `log`/`log_bytes` returned, log content complete)
 and log retention are tested without a Yocto tree. An argument
 `fixture-<stamp>` makes a shim replay a captured log from `tests/fixtures/logs`
 with its exit code, which is how the `digest` is tested end to end. `LOG_DIR` there follows the
-isolated `HOME`, so the test never touches the real `~/.cache/mcp-yocto`.
+isolated `HOME`, so the test never touches the real `~/.cache/bitbake-mcp`.
 
 ## License
 

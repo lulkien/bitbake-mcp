@@ -222,7 +222,7 @@ async fn run_child(
     guard.paths.clear();
     let mut stderr = inline(&err, err_in_log, INLINE_CAP);
     if !note.is_empty() {
-        let n = format!("\n[mcp-yocto: {}the log is incomplete]\n", note);
+        let n = format!("\n[bitbake-mcp: {}the log is incomplete]\n", note);
         stderr.get_or_insert_with(String::new).push_str(&n);
     }
     ExecResult {

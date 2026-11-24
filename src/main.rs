@@ -21,7 +21,7 @@ use rmcp::ServiceExt;
 use std::str::FromStr;
 use tools::BitBakeServer;
 
-const SERVER_NAME: &str = "mcp-yocto";
+const SERVER_NAME: &str = "bitbake-mcp";
 /// Track the crate version so the reported server version can't drift from
 /// `Cargo.toml`.
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
         .apply()
         .map_err(|e| anyhow::anyhow!("failed to init logging: {e}"))?;
 
-    log::info!("starting mcp-yocto {}", SERVER_VERSION);
+    log::info!("starting bitbake-mcp {}", SERVER_VERSION);
 
     let cfg = config::Config::load()?;
     if let Some(init) = &cfg.init_script {

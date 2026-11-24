@@ -401,7 +401,7 @@ mod tests {
     }
 
     /// Size distribution over a directory of real logs:
-    /// `DIGEST_CORPUS=~/.cache/mcp-yocto cargo test --release corpus -- --ignored --nocapture`.
+    /// `DIGEST_CORPUS=~/.cache/bitbake-mcp cargo test --release corpus -- --ignored --nocapture`.
     /// `DIGEST_SHOW=<name>,...` also prints those logs' digests.
     #[test]
     #[ignore]

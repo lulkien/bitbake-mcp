@@ -1,8 +1,8 @@
-# mcp-yocto configuration
+# bitbake-mcp configuration
 #
-# Copy to ./mcp-yocto.toml, ~/.config/mcp-yocto.toml, or point
-# MCP_YOCTO_CONFIG at it. Search order: MCP_YOCTO_CONFIG,
-# ./mcp-yocto.toml, ~/.config/mcp-yocto.toml.
+# Copy to ./bitbake-mcp.toml, ~/.config/bitbake-mcp.toml, or point
+# BITBAKE_MCP_CONFIG at it. Search order: BITBAKE_MCP_CONFIG,
+# ./bitbake-mcp.toml, ~/.config/bitbake-mcp.toml.
 #
 # All fields optional. Without init_script, build commands run directly from
 # PATH (only works if the server process already has a sourced Yocto env).

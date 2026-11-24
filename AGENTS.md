@@ -1,4 +1,4 @@
-# mcp-yocto — agent instructions
+# bitbake-mcp — agent instructions
 
 Rust MCP server (rmcp + tokio) that runs `bitbake` and `devtool` in a Yocto
 build directory, exposed as 6 MCP tools over stdio.
@@ -7,7 +7,7 @@ build directory, exposed as 6 MCP tools over stdio.
 format, layout, tests. This file is the operational path — what an agent does,
 in order.
 
-- **Task 1 — install this server.** Do it when `mcp-yocto` is not on PATH or
+- **Task 1 — install this server.** Do it when `bitbake-mcp` is not on PATH or
   is not registered with your MCP client.
 - **Task 2 — change the server.** Repo layout, invariants, proof.
 
@@ -17,17 +17,16 @@ in order.
 
 Done when all three hold:
 
-1. `command -v mcp-yocto` prints a path.
+1. `command -v bitbake-mcp` prints a path.
 2. The probe below prints `6 tools: ...`.
 3. Steps 3 and 5 are done: the config file exists, and the usage skill is
    installed.
 
-**Fetch the repo first** (given only a repo link, this is the clone to run —
-http, no key needed; the ssh remote is owner-only):
+**Fetch the repo first** (given only a repo link, this is the clone to run):
 
 ```bash
-git clone http://civsl.lge.com/gitea/kien1.luu/mcp-yocto.git
-cd mcp-yocto
+git clone https://github.com/lulkien/bitbake-mcp.git
+cd bitbake-mcp
 ```
 
 ### 1. Rust toolchain
@@ -47,7 +46,7 @@ Do not install a distro `rustc` package — it is usually older than 1.85.
 
 ```bash
 cd <clone of this repo>
-cargo install --path . --locked            # -> ~/.cargo/bin/mcp-yocto
+cargo install --path . --locked            # -> ~/.cargo/bin/bitbake-mcp
 ```
 
 `--locked` uses `Cargo.lock` as-is; the binary lands in `~/.cargo/bin`, already
@@ -55,7 +54,7 @@ on PATH with rustup (add it if your PATH lacks it). Re-running the same command
 later upgrades an existing install in place.
 
 Prove the build is sound on this machine before registering it. The repo's own
-suites run against `./target/release/mcp-yocto`, which `cargo install --path .`
+suites run against `./target/release/bitbake-mcp`, which `cargo install --path .`
 just produced:
 
 ```bash
@@ -67,7 +66,7 @@ Prove the installed binary speaks MCP and exposes all 6 tools:
 ```bash
 python3 - <<'PY'
 import json, subprocess
-p = subprocess.Popen(["mcp-yocto"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+p = subprocess.Popen(["bitbake-mcp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      stderr=subprocess.DEVNULL)
 msgs = [
   {"jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -92,8 +91,8 @@ PY
 
 ### 3. Config — required
 
-Write `~/.config/mcp-yocto.toml` (search order: `MCP_YOCTO_CONFIG` env var,
-`./mcp-yocto.toml` in the server's cwd, then that file — use the absolute user
+Write `~/.config/bitbake-mcp.toml` (search order: `BITBAKE_MCP_CONFIG` env var,
+`./bitbake-mcp.toml` in the server's cwd, then that file — use the absolute user
 path, because a stdio server's cwd is the *client's* cwd):
 
 ```toml
@@ -115,43 +114,43 @@ before writing the file.** Every tool runs a command, so without this file the
 server installs but does nothing useful — say so rather than leaving the user
 with tools that only fail.
 
-`mcp-yocto.example.toml` is a commented copy of this file; `cp` it rather than
+`bitbake-mcp.example.toml` is a commented copy of this file; `cp` it rather than
 retyping.
 
 ### 4. Register with the MCP client
 
 The server is a **stdio** MCP server: absolute path to the binary, no
-arguments, no env required (`MCP_YOCTO_CONFIG` optional). Do not wrap it in a
+arguments, no env required (`BITBAKE_MCP_CONFIG` optional). Do not wrap it in a
 shell.
 
 ```bash
-hermes mcp add mcp-yocto --command "$HOME/.cargo/bin/mcp-yocto"   # Hermes
-claude mcp add mcp-yocto -- "$HOME/.cargo/bin/mcp-yocto"          # Claude Code
+hermes mcp add bitbake-mcp --command "$HOME/.cargo/bin/bitbake-mcp"   # Hermes
+claude mcp add bitbake-mcp -- "$HOME/.cargo/bin/bitbake-mcp"          # Claude Code
 ```
 
 For a JSON-config client (Claude Desktop, etc.):
 
 ```json
-{ "mcpServers": { "mcp-yocto": { "command": "/home/<you>/.cargo/bin/mcp-yocto" } } }
+{ "mcpServers": { "bitbake-mcp": { "command": "/home/<you>/.cargo/bin/bitbake-mcp" } } }
 ```
 
 Verify with the client, then restart it if it caches tools:
 
 ```bash
-hermes mcp test mcp-yocto     # "Connected" + "Tools discovered: 6"
+hermes mcp test bitbake-mcp     # "Connected" + "Tools discovered: 6"
 ```
 
 ### 5. Install the usage skill
 
-`skills/mcp-yocto/SKILL.md` in this repo teaches an agent how to drive these
+`skills/bitbake-mcp/SKILL.md` in this repo teaches an agent how to drive these
 tools (which tool for which job, workflows, pitfalls). Install it where your
 agent loads skills from:
 
 ```bash
-mkdir -p ~/.hermes/skills/project && cp -R skills/mcp-yocto ~/.hermes/skills/project/
+mkdir -p ~/.hermes/skills/project && cp -R skills/bitbake-mcp ~/.hermes/skills/project/
 ```
 
-Other agents: point them at `skills/mcp-yocto/SKILL.md` or copy that directory
+Other agents: point them at `skills/bitbake-mcp/SKILL.md` or copy that directory
 into their own skill/instruction directory. A new session picks it up; the
 current one has already loaded its skill index.
 
@@ -180,7 +179,7 @@ Invariants — keep every one:
 - Every result — success, validation error, or rejection — is a JSON text block
   carrying `elapsed_ms`. Logs go to stderr; stdout is the JSON-RPC stream.
 - Output is logged, not shipped: `src/exec/` writes every executed command's
-  complete stdout/stderr to `$XDG_CACHE_HOME|~/.cache` + `/mcp-yocto` and
+  complete stdout/stderr to `$XDG_CACHE_HOME|~/.cache` + `/bitbake-mcp` and
   returns `log` + `log_bytes`, inlining a stream only while it fits
   `INLINE_CAP` (2 KiB). Never drop output: with no writable log dir the result
   must carry it inline. Results that never spawned a command have no log. Logs
@@ -226,6 +225,6 @@ confirming the changed tool's `inputSchema` in `tools/list`.
 
 Doc sync: `README.md` carries the human-facing contract (config, per-tool flag
 tables, error codes) — update it with the code, and this file if install,
-config, or registration changes. The usage skill `skills/mcp-yocto/SKILL.md`
+config, or registration changes. The usage skill `skills/bitbake-mcp/SKILL.md`
 documents tool *selection and workflows*, not flags; update it when a tool is
 added, renamed, or its job changes.

@@ -1,8 +1,8 @@
 //! Configuration for the MCP server.
 //!
-//! Loaded from `mcp-yocto.toml` (near the config discovery convention used
-//! by sibling tools): the current dir, `~/.config/mcp-yocto.toml`, or a path
-//! from the `MCP_YOCTO_CONFIG` env var. All fields optional — if no
+//! Loaded from `bitbake-mcp.toml` (near the config discovery convention used
+//! by sibling tools): the current dir, `~/.config/bitbake-mcp.toml`, or a path
+//! from the `BITBAKE_MCP_CONFIG` env var. All fields optional — if no
 //! `init_script` is given, build commands run directly (same as before).
 
 use serde::Deserialize;
@@ -22,8 +22,8 @@ pub struct Config {
     pub build_dir: Option<PathBuf>,
 }
 
-/// Default directory for the per-call output logs: `$XDG_CACHE_HOME/mcp-yocto`
-/// when that is an absolute path, else `$HOME/.cache/mcp-yocto`.
+/// Default directory for the per-call output logs: `$XDG_CACHE_HOME/bitbake-mcp`
+/// when that is an absolute path, else `$HOME/.cache/bitbake-mcp`.
 ///
 /// An empty path when neither is usable (`HOME` unset in a container): the
 /// caller then writes no log file and results carry their output inline.
@@ -32,10 +32,10 @@ pub fn default_log_dir() -> PathBuf {
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
     {
-        return dir.join("mcp-yocto");
+        return dir.join("bitbake-mcp");
     }
     match std::env::var_os("HOME") {
-        Some(home) => PathBuf::from(home).join(".cache").join("mcp-yocto"),
+        Some(home) => PathBuf::from(home).join(".cache").join("bitbake-mcp"),
         None => PathBuf::new(),
     }
 }
@@ -47,16 +47,16 @@ impl Config {
         let mut candidates: Vec<PathBuf> = Vec::new();
 
         // 1. explicit env override
-        if let Ok(p) = std::env::var("MCP_YOCTO_CONFIG") {
+        if let Ok(p) = std::env::var("BITBAKE_MCP_CONFIG") {
             candidates.push(PathBuf::from(p));
         }
         // 2. current dir
         if let Ok(cwd) = std::env::current_dir() {
-            candidates.push(cwd.join("mcp-yocto.toml"));
+            candidates.push(cwd.join("bitbake-mcp.toml"));
         }
         // 3. user config dir
         if let Some(home) = std::env::var_os("HOME") {
-            candidates.push(PathBuf::from(home).join(".config").join("mcp-yocto.toml"));
+            candidates.push(PathBuf::from(home).join(".config").join("bitbake-mcp.toml"));
         }
 
         for path in &candidates {

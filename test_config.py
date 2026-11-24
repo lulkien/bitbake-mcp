@@ -14,11 +14,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import shims
 
 REPO = os.path.dirname(os.path.abspath(__file__))
-BIN = os.environ.get("BB_BIN", os.path.join(REPO, "target", "release", "mcp-yocto"))
+BIN = os.environ.get("BB_BIN", os.path.join(REPO, "target", "release", "bitbake-mcp"))
 if not os.path.exists(BIN):
     sys.exit(f"missing server binary: {BIN}\nrun: cargo build --release  (or set BB_BIN)")
 
-BASE = tempfile.mkdtemp(prefix="mcp-yocto-config-")
+BASE = tempfile.mkdtemp(prefix="bitbake-mcp-config-")
 SH = shims.install(BASE)
 BUILD = SH["build_dir"]
 OTHER_BUILD = SH["other_build_dir"]
@@ -79,24 +79,24 @@ env = shims.server_env(SH)
 env.pop("RUST_LOG", None)
 proc, _ = start(env)
 stderr = stop(proc)
-check("unset RUST_LOG defaults to info", "starting mcp-yocto" in stderr, stderr)
+check("unset RUST_LOG defaults to info", "starting bitbake-mcp" in stderr, stderr)
 
 env = shims.server_env(SH)
 env["RUST_LOG"] = "warn"
 proc, _ = start(env)
 stderr = stop(proc)
-check("RUST_LOG=warn filters info startup log", "starting mcp-yocto" not in stderr, stderr)
+check("RUST_LOG=warn filters info startup log", "starting bitbake-mcp" not in stderr, stderr)
 
 env = shims.server_env(SH)
 env["RUST_LOG"] = "not-a-level"
 proc, _ = start(env)
 stderr = stop(proc)
-check("invalid RUST_LOG defaults to info", "starting mcp-yocto" in stderr, stderr)
+check("invalid RUST_LOG defaults to info", "starting bitbake-mcp" in stderr, stderr)
 
 
 # --- 1. init_script + build_dir from config -------------------------------
 env = shims.server_env(SH)
-env["MCP_YOCTO_CONFIG"] = write_config(
+env["BITBAKE_MCP_CONFIG"] = write_config(
     "cfg.toml", init_script=SH["init_script"], build_dir=BUILD,
 )
 proc, call = start(env)
@@ -125,7 +125,7 @@ stop(proc)
 
 # --- 2. init_script points at a missing file -> fail closed ---------------
 env = shims.server_env(SH)
-env["MCP_YOCTO_CONFIG"] = write_config(
+env["BITBAKE_MCP_CONFIG"] = write_config(
     "cfg_missing.toml",
     init_script=os.path.join(BASE, "not-a-real-oe-init-build-env"),
     build_dir=BUILD,
@@ -161,7 +161,7 @@ with open(os.path.join(SH["init_dir"], "devtool"), "w") as fh:
 os.chmod(os.path.join(SH["init_dir"], "devtool"), 0o755)
 cfg = write_config("cancel.toml", init_script=SH["init_script"], build_dir=BUILD)
 env = shims.server_env(SH)
-env["MCP_YOCTO_CONFIG"] = cfg
+env["BITBAKE_MCP_CONFIG"] = cfg
 proc, call = start(env)
 proc.stdin.write((json.dumps({"jsonrpc":"2.0","id":70,"method":"tools/call",
     "params":{"name":"devtool_status","arguments":{}}}) + "\n").encode())

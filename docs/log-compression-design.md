@@ -11,7 +11,7 @@ open the log at all. The log file stays the complete source of truth.
 
 ## 1. Evidence
 
-Sampled every file in `~/.cache/mcp-yocto/` (202 `.log`, 2 orphan `.err`,
+Sampled every file in `~/.cache/bitbake-mcp/` (202 `.log`, 2 orphan `.err`,
 7.6 MB on disk). Classifier: a 20-rule prefix/substring script run over every
 line; nothing was eyeballed from whole logs.
 
@@ -390,7 +390,7 @@ pub digest: Option<digest::Digest>,
   `outcome: "killed"` with a `tail`, if anything ever reads it.
 - `build_failure` (`src/exec.rs:80-90`): no log, no digest.
 - **Incomplete log** (T50: a log sink or `finish_log` failed; the result
-  carries `[mcp-yocto: … the log is incomplete]` and, when stderr had output,
+  carries `[bitbake-mcp: … the log is incomplete]` and, when stderr had output,
   `stderr is in <file>.err`). The digest is still built, from the `.log`
   text only, and gains `"incomplete": true` plus `"stderr_file": "<path of
   the kept .err>"` when one was kept. `outcome` comes from the exit status
@@ -537,7 +537,7 @@ Docs: `README.md` result envelope (`digest`, drop order, 4 KiB serialized
 cap); `AGENTS.md` invariants (digest is derived; the log is the source of
 truth; digest never reads `.err`; an incomplete log sets `digest.incomplete`)
 and proof (`cargo test`);
-`skills/mcp-yocto/SKILL.md` workflow ("read `digest.failed_tasks[0]` first;
+`skills/bitbake-mcp/SKILL.md` workflow ("read `digest.failed_tasks[0]` first;
 open `task_log` or `log` only if that is not enough").
 
 ## 7. Phases

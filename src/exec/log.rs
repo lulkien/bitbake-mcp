@@ -147,7 +147,7 @@ pub(super) async fn drain<R: tokio::io::AsyncRead + Unpin>(
 /// Text standing in for `missing` bytes that are only in the file `path`.
 fn gap_marker(missing: u64, path: &Path) -> String {
     format!(
-        "\n[mcp-yocto: {missing} bytes omitted here; they are in {}]\n",
+        "\n[bitbake-mcp: {missing} bytes omitted here; they are in {}]\n",
         path.display()
     )
 }
