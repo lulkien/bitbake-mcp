@@ -290,7 +290,7 @@ prototype folds `Diag` into `task_other`, the engine counts it separately):
 - `outcome`: `succeeded` (exit 0), `failed` (exit ≠ 0), `killed` (no exit
   code, header `exit_code: -`). Three values for every command kind.
 - `failed_stage`: only for task-running kinds (`CommandKind::Tasks`:
-  `bitbake`, `devtool build`, `devtool modify`) when `outcome = failed`:
+  `bitbake`, `devtool build`, `devtool modify`, `devtool build-image`) when `outcome = failed`:
   `parse` if no `Running task` line was seen, else `tasks`. `deploy-target`,
   `status`, `reset` (`CommandKind::Plain`) never carry it — a failed deploy is
   just `failed`. Replaces T49's `parse_failed` outcome.
@@ -407,7 +407,7 @@ pub digest: Option<digest::Digest>,
 New file `src/digest.rs`, no new crate:
 
 ```rust
-pub enum CommandKind { Tasks, Plain }          // from program + first arg in main.rs
+pub enum CommandKind { Tasks, Plain }          // from program + first arg in src/tools/mod.rs
 pub struct DigestBuilder { /* counters, families (Vec, ≤ 64), pending, pre_errors, tail ring (15) */ }
 impl DigestBuilder {
     pub fn new(kind: CommandKind) -> Self;
@@ -417,9 +417,10 @@ impl DigestBuilder {
 pub fn digest_file(path: &Path, kind: CommandKind, exit_code: Option<i32>) -> std::io::Result<Digest>; // blocking
 ```
 
-`CommandKind` is chosen where the argv is built in `src/main.rs`: `bitbake`,
-`devtool build`, `devtool modify` → `Tasks`; other devtool subcommands →
-`Plain`. It travels in `ExecContext` or as a `run` argument.
+`CommandKind::of` in `src/digest/types.rs`, called by `src/tools/mod.rs`, maps
+`bitbake`, `devtool build`, `devtool modify`, and `devtool build-image` to
+`Tasks`; other devtool subcommands map to `Plain`. It travels in `ExecContext`
+or as a `run` argument.
 
 Phase 1 calls `digest_file` on the finished log inside `spawn_blocking`, right
 after `finish_log` (`src/exec.rs:253`, called at `:459`). It reads only the

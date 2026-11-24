@@ -1,13 +1,17 @@
-//! Request payloads of the six tools. `recipe` and `target` are required, so
-//! the tool schema says so; a missing or wrongly typed argument fails
+//! Request payloads of the seven tools. Required arguments are declared as
+//! such so the tool schema says so; a missing or wrongly typed argument fails
 //! deserialization before a handler runs.
 
 use rmcp::schemars;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub(super) struct RecipeCmdReq {
+pub(super) struct DevtoolModifyReq {
     pub(super) recipe: String,
+    /// `true` passes `--debug-build` to add DEBUG_BUILD=1 to the workspace
+    /// append, enabling on-target debugging.
+    #[serde(default)]
+    pub(super) debug_build: Option<bool>,
     /// Absolute directory in which to run the command (e.g. a Yocto build
     /// dir). Defaults to the configured `build_dir`.
     #[serde(default)]
@@ -60,6 +64,20 @@ pub(super) struct DevtoolBuildReq {
     /// building). Defaults to false.
     #[serde(default)]
     pub(super) clean: Option<bool>,
+    /// `true` passes `-s` to disable parallel make for this build.
+    #[serde(default)]
+    pub(super) disable_parallel_make: Option<bool>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolBuildImageReq {
+    /// Image recipe to build; required by `devtool build-image`.
+    pub(super) image: String,
+    /// Comma-separated recipe names to add to the image with `-p`.
+    #[serde(default)]
+    pub(super) add_packages: Option<String>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,
 }

@@ -45,9 +45,37 @@ pub fn validate_recipe_name(name: &str) -> ValidationResult {
     }
 }
 
+/// Validate a comma-separated list of recipe names passed to build-image `-p`.
+pub fn validate_package_list(packages: &str) -> ValidationResult {
+    if packages
+        .split(',')
+        .all(|package| validate_recipe_name(package).is_ok())
+    {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            error_code: "INVALID_ARGUMENT",
+            message: format!("Invalid package list: {packages}"),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::validate_recipe_name;
+    use super::{validate_package_list, validate_recipe_name};
+
+    #[test]
+    fn package_lists_accept_recipe_names() {
+        assert!(validate_package_list("a,b").is_ok());
+        assert!(validate_package_list("gtk+3,libsigc++-3").is_ok());
+    }
+
+    #[test]
+    fn package_lists_reject_invalid_recipe_names() {
+        for packages in ["a;b", "a,,b", "", "-x,b", "a,../b"] {
+            assert!(validate_package_list(packages).is_err(), "accepted {packages:?}");
+        }
+    }
 
     #[test]
     fn recipe_names_accept_plus_and_existing_safe_characters() {

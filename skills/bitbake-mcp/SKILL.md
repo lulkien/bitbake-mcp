@@ -12,7 +12,7 @@ metadata:
 
 # bitbake-mcp: BitBake/Yocto MCP server
 
-Six MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
+Seven MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
 while those fit 2 KiB, and a `digest` (≤ 4 KiB) when they do not. **A build's
 full output is in the log file, not in the result** — the `digest` says what
@@ -21,6 +21,7 @@ failed; open the log only when it is not enough.
 ## When to Use
 
 - Building a recipe: `bitbake`, a single task, or `devtool build`.
+- Building an image with workspace recipes: `devtool_build_image`.
 - Modifying a recipe from source: `devtool status` → `devtool modify` →
   `devtool build` → `devtool reset`.
 - Getting a build onto a board: `devtool deploy_target`.
@@ -48,8 +49,9 @@ explicitly when several build trees exist):
 |---|---|---|
 | `bitbake_recipe` | `recipe`, `task?`, `force?`, `clear_stamp?`, `runall?`, `runonly?`, `no_setscene?`, `skip_setscene?`, `setscene_only?`, `continue_on_error?`, `dry_run?`, `dump_signatures?` | `bitbake [flags] <recipe>`; omit `task` for the recipe's default task |
 | `devtool_status` | — | list recipes currently in the workspace (`devtool status`) |
-| `devtool_modify` | `recipe` | start modifying a recipe (extracts sources) |
-| `devtool_build` | `recipe`, `clean?` | `devtool build [-c] <recipe>`; `clean:true` cleans build results first |
+| `devtool_modify` | `recipe`, `debug_build?` | start modifying a recipe (extracts sources); `debug_build:true` enables `DEBUG_BUILD=1` for on-target debugging |
+| `devtool_build` | `recipe`, `clean?`, `disable_parallel_make?` | `devtool build [-c] [-s] <recipe>`; `clean:true` cleans build results first; `disable_parallel_make:true` passes `-s` |
+| `devtool_build_image` | `image` (required), `add_packages?` | `devtool build-image [-p <packages>] <image>`; `add_packages` is a comma-separated recipe list |
 | `devtool_reset` | `recipe`, `no_clean?` | undo a modify; passes `-n` unless `no_clean:false` |
 | `devtool_deploy_target` | `recipe`, `target` (`user@host`), `port?`, `strip?`, `no_host_check?`, `no_preserve?`, `no_check_space?` | deploy the recipe's `do_install` output to a board |
 
@@ -60,6 +62,9 @@ modified) → `devtool_modify` → edit the extracted source tree → `devtool_b
 → `devtool_deploy_target` with `target: "root@<ip>"` and `port` if non-22 →
 `devtool_reset` when done. `devtool_reset` defaults to `-n` (leaves the sysroot
 output); pass `no_clean: false` only when the stale sysroot is the problem.
+
+To build an image containing workspace packages, use `devtool_build_image` with
+the required image name and, optionally, `add_packages: "foo,bar"`.
 
 **Ship small.** `devtool_deploy_target` deploys the whole `do_install` output,
 debug info included; `strip: true` adds `-S`. For a smaller transfer, build the

@@ -1,4 +1,4 @@
-//! The six tools: the server type, its tool declarations, and the shared
+//! The seven tools: the server type, its tool declarations, and the shared
 //! "resolve cwd, run, serialize" path every tool ends in.
 
 mod argv;
@@ -8,7 +8,10 @@ mod requests;
 
 use crate::{config, digest, exec, validation};
 use envelope::validation_error;
-use requests::{BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolBuildReq, DevtoolResetReq, RecipeCmdReq};
+use requests::{
+    BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolBuildImageReq, DevtoolBuildReq,
+    DevtoolModifyReq, DevtoolResetReq,
+};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     tool, tool_router,
@@ -98,29 +101,52 @@ impl BitBakeServer {
 
 #[tool_router]
 impl BitBakeServer {
-    /// Run `devtool modify <recipe>` in the build directory.
-    #[tool(description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe.")]
+    /// Run `devtool modify [--debug-build] <recipe>` in the build directory.
+    #[tool(description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe. Set debug_build=true to pass --debug-build and enable DEBUG_BUILD=1 in the workspace append for on-target debugging.")]
     async fn devtool_modify(
         &self,
-        Parameters(RecipeCmdReq { recipe, build_dir }): Parameters<RecipeCmdReq>,
+        Parameters(DevtoolModifyReq {
+            recipe,
+            debug_build,
+            build_dir,
+        }): Parameters<DevtoolModifyReq>,
     ) -> String {
-        self.run_tool_cmd("devtool", vec!["modify".to_string()], recipe, build_dir)
+        let argv = argv::devtool_modify(debug_build);
+        self.run_tool_cmd("devtool", argv, recipe, build_dir)
             .await
     }
 
-    /// Run `devtool build [-c] <recipe>` in the build directory.
-    #[tool(description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first).")]
+    /// Run `devtool build [-c] [-s] <recipe>` in the build directory.
+    #[tool(description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first); set disable_parallel_make=true to pass -s and disable parallel make.")]
     async fn devtool_build(
         &self,
         Parameters(DevtoolBuildReq {
             recipe,
             clean,
+            disable_parallel_make,
             build_dir,
         }): Parameters<DevtoolBuildReq>,
     ) -> String {
-        // Command: devtool build [-c] <recipe>
-        let argv = argv::devtool_build(clean);
+        // Command: devtool build [-c] [-s] <recipe>
+        let argv = argv::devtool_build(clean, disable_parallel_make);
         self.run_tool_cmd("devtool", argv, recipe, build_dir).await
+    }
+
+    /// Build an image with optional extra workspace packages.
+    #[tool(description = "Run 'devtool build-image [-p <packages>] <image>' in the build directory. image is required; add_packages is a comma-separated list of recipe names passed to -p.")]
+    async fn devtool_build_image(
+        &self,
+        Parameters(DevtoolBuildImageReq {
+            image,
+            add_packages,
+            build_dir,
+        }): Parameters<DevtoolBuildImageReq>,
+    ) -> String {
+        let argv = match argv::devtool_build_image(add_packages) {
+            Ok(argv) => argv,
+            Err(v) => return validation_error(&v),
+        };
+        self.run_tool_cmd("devtool", argv, image, build_dir).await
     }
 
     /// Run `devtool status` in the build directory.

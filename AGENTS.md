@@ -1,7 +1,7 @@
 # bitbake-mcp — agent instructions
 
 Rust MCP server (rmcp + tokio) that runs `bitbake` and `devtool` in a Yocto
-build directory, exposed as 6 MCP tools over stdio.
+build directory, exposed as 7 MCP tools over stdio.
 
 `README.md` is the human-facing contract: config, every tool, flags, error
 format, layout, tests. This file is the operational path — what an agent does,
@@ -18,7 +18,7 @@ in order.
 Done when all three hold:
 
 1. `command -v bitbake-mcp` prints a path.
-2. The probe below prints `6 tools: ...`.
+2. The probe below prints `7 tools: ...`.
 3. Steps 3 and 5 are done: the config file exists, and the usage skill is
    installed.
 
@@ -61,7 +61,7 @@ just produced:
 python3 test_exec.py && python3 test_config.py   # exit 0, "TOTAL FAILURES: 0"
 ```
 
-Prove the installed binary speaks MCP and exposes all 6 tools:
+Prove the installed binary speaks MCP and exposes all 7 tools:
 
 ```bash
 python3 - <<'PY'
@@ -137,7 +137,7 @@ For a JSON-config client (Claude Desktop, etc.):
 Verify with the client, then restart it if it caches tools:
 
 ```bash
-hermes mcp test bitbake-mcp     # "Connected" + "Tools discovered: 6"
+hermes mcp test bitbake-mcp     # "Connected" + "Tools discovered: 7"
 ```
 
 ### 5. Install the usage skill

@@ -42,7 +42,8 @@ cp -R skills/bitbake-mcp ~/.hermes/skills/project/
 
 Runs `bitbake` or `devtool` in a build directory:
 `bitbake_recipe`, `devtool_status`, `devtool_modify`,
-`devtool_build`, `devtool_reset`, `devtool_deploy_target`
+`devtool_build`, `devtool_build_image`, `devtool_reset`,
+`devtool_deploy_target`
 
 Each tool is documented in full below.
 
@@ -159,24 +160,43 @@ that has no workspace layer yet creates it and enables it in
 
 ### `devtool_modify`
 
-`devtool modify <recipe>` — start modifying a recipe.
+`devtool modify [--debug-build] <recipe>` — start modifying a recipe.
 
 ```json
 { "recipe": "busybox", "build_dir": "/path/to/build" }
+{ "recipe": "busybox", "debug_build": true }
 ```
+
+`debug_build` defaults to false; when true, `--debug-build` sets
+`DEBUG_BUILD=1` in the workspace append for on-target debugging.
 
 ### `devtool_build`
 
-`devtool build [-c] <recipe>` — build a recipe.
+`devtool build [-c] [-s] <recipe>` — build a recipe.
 
 ```json
 { "recipe": "myapp", "build_dir": "/path/to/build" }
 { "recipe": "myapp", "clean": true, "build_dir": "/path/to/build" }
+{ "recipe": "myapp", "disable_parallel_make": true }
 ```
 
 `clean` defaults to false and emits nothing; `true` appends `-c`, which cleans
-up the recipe's build results before building. `-s`
-(`--disable-parallel-make`) is not exposed.
+up the recipe's build results before building. `disable_parallel_make` defaults
+to false; `true` passes `-s` (`--disable-parallel-make`) to isolate
+parallel-make issues.
+
+### `devtool_build_image`
+
+`devtool build-image [-p <packages>] <image>` — build an image, optionally
+including workspace packages. The image is required.
+
+```json
+{ "image": "core-image-minimal", "build_dir": "/path/to/build" }
+{ "image": "core-image-minimal", "add_packages": "foo,bar" }
+```
+
+`add_packages` is an optional comma-separated list of recipe names passed to
+`-p`. Each name is validated like a recipe argument.
 
 ### `devtool_reset`
 
@@ -392,7 +412,7 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 ## Layout
 
 - `src/main.rs` — entry wiring: logging, config, stdio serve
-- `src/tools/` — the six tools: `mod.rs` (server type, tool declarations, run
+- `src/tools/` — the seven tools: `mod.rs` (server type, tool declarations, run
   path), `requests.rs` (request structs), `argv.rs` (argument building),
   `envelope.rs` (`ok` envelope, `elapsed_ms`), `handler.rs` (`ServerHandler`,
   call timing)

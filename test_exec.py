@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the six execution tools over MCP stdio.
+"""Test the seven execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
@@ -103,6 +103,10 @@ check("devtool_modify command ref", "devtool modify busybox" in r.get("command",
 check("devtool_modify elapsed_ms is the call duration",
       isinstance(r.get("elapsed_ms"), int) and 0 <= r["elapsed_ms"] <= wall_ms + 100,
       f"elapsed_ms={r.get('elapsed_ms')} wall_ms={wall_ms:.1f}")
+r, _ = call("devtool_modify", {"recipe": "busybox", "debug_build": True, "build_dir": BUILD})
+check("devtool_modify --debug-build argv",
+      "devtool-args:modify --debug-build busybox\n" in r.get("stdout", ""),
+      str(r.get("stdout")))
 
 # devtool build (newline pins the end of the argv, so an extra flag on the
 # default path would fail this check)
@@ -121,6 +125,20 @@ check("devtool_build clean=true command ref",
 r, _ = call("devtool_build", {"recipe": "myapp", "clean": False, "build_dir": BUILD})
 check("devtool_build clean=false argv",
       "devtool-args:build myapp\n" in r.get("stdout",""), str(r.get("stdout")))
+r, _ = call("devtool_build", {"recipe": "myapp", "disable_parallel_make": True,
+                              "build_dir": BUILD})
+check("devtool_build -s argv",
+      "devtool-args:build -s myapp\n" in r.get("stdout", ""), str(r.get("stdout")))
+
+r, _ = call("devtool_build_image", {"image": "core-image-minimal",
+                                     "add_packages": "a,b", "build_dir": BUILD})
+check("devtool_build_image -p argv",
+      "devtool-args:build-image -p a,b core-image-minimal\n" in r.get("stdout", ""),
+      str(r.get("stdout")))
+r, _ = call("devtool_build_image", {"image": "core-image-minimal",
+                                     "add_packages": "a;b", "build_dir": BUILD})
+check("devtool_build_image rejects invalid add_packages",
+      r.get("ok") is False and "devtool-args" not in r.get("stdout", ""), str(r))
 
 # devtool status (no arguments beyond build_dir; the newline pins the end of
 # the argv so an appended flag would fail this check)

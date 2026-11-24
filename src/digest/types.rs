@@ -6,7 +6,8 @@ use serde::Serialize;
 /// What a command does, which decides whether a failure can have a stage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandKind {
-    /// Runs bitbake tasks: `bitbake`, `devtool build`, `devtool modify`.
+    /// Runs bitbake tasks: `bitbake`, `devtool build`, `devtool modify`, and
+    /// `devtool build-image`.
     Tasks,
     /// Everything else (`devtool deploy-target`, `status`, `reset`).
     Plain,
@@ -16,9 +17,21 @@ impl CommandKind {
     /// Kind of `program args...`.
     pub fn of(program: &str, args: &[String]) -> Self {
         match (program, args.first().map(String::as_str)) {
-            ("bitbake", _) | ("devtool", Some("build" | "modify")) => Self::Tasks,
+            ("bitbake", _)
+            | ("devtool", Some("build" | "modify" | "build-image")) => Self::Tasks,
             _ => Self::Plain,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CommandKind;
+
+    #[test]
+    fn devtool_build_image_is_a_task_command() {
+        let args = vec!["build-image".to_string(), "core-image-minimal".to_string()];
+        assert_eq!(CommandKind::of("devtool", &args), CommandKind::Tasks);
     }
 }
 

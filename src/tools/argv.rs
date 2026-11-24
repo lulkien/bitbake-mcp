@@ -1,4 +1,4 @@
-//! Argument vectors of the six tools. Pure: no I/O, no shell. User values are
+//! Argument vectors of the seven tools. Pure: no I/O, no shell. User values are
 //! validated before these run, except task names, which `bitbake_recipe`
 //! validates as it emits them.
 
@@ -26,13 +26,41 @@ fn push_setscene_flags(
     }
 }
 
-/// `devtool build [-c]`; the caller appends the recipe.
-pub(super) fn devtool_build(clean: Option<bool>) -> Vec<String> {
+/// `devtool build [-c] [-s]`; the caller appends the recipe.
+pub(super) fn devtool_build(
+    clean: Option<bool>,
+    disable_parallel_make: Option<bool>,
+) -> Vec<String> {
+    let mut args = vec!["build".to_string()];
     if clean.unwrap_or(false) {
-        vec!["build".to_string(), "-c".to_string()]
-    } else {
-        vec!["build".to_string()]
+        args.push("-c".to_string());
     }
+    if disable_parallel_make.unwrap_or(false) {
+        args.push("-s".to_string());
+    }
+    args
+}
+
+/// `devtool modify [--debug-build]`; the caller appends the recipe.
+pub(super) fn devtool_modify(debug_build: Option<bool>) -> Vec<String> {
+    let mut args = vec!["modify".to_string()];
+    if debug_build.unwrap_or(false) {
+        args.push("--debug-build".to_string());
+    }
+    args
+}
+
+/// `devtool build-image [-p <packages>]`; the caller appends the image.
+pub(super) fn devtool_build_image(
+    add_packages: Option<String>,
+) -> Result<Vec<String>, ValidationError> {
+    let mut args = vec!["build-image".to_string()];
+    if let Some(packages) = add_packages {
+        validation::validate_package_list(&packages)?;
+        args.push("-p".to_string());
+        args.push(packages);
+    }
+    Ok(args)
 }
 
 /// `devtool reset [-n]`; the caller appends the recipe.
