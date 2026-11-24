@@ -1,4 +1,4 @@
-//! Request payloads of the eight tools. Required arguments are declared as
+//! Request payloads of the twelve tools. Required arguments are declared as
 //! such so the tool schema says so; a missing or wrongly typed argument fails
 //! deserialization before a handler runs.
 
@@ -105,6 +105,31 @@ pub(super) struct DevtoolBuildImageReq {
     /// Comma-separated recipe names to add to the image with `-p`.
     #[serde(default)]
     pub(super) add_packages: Option<String>,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolSearchReq {
+    pub(super) keyword: String,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolRecipeReq {
+    pub(super) recipe: String,
+    #[serde(default)]
+    pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct DevtoolCheckUpgradeStatusReq {
+    /// Select up to 32 recipes, or set `all` to check every recipe.
+    #[serde(default)]
+    pub(super) recipes: Option<Vec<String>>,
+    #[serde(default)]
+    pub(super) all: Option<bool>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,
 }

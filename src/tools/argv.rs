@@ -1,4 +1,4 @@
-//! Argument vectors of the eight tools. Pure: no I/O, no shell. User values are
+//! Argument vectors of the twelve tools. Pure: no I/O, no shell. User values are
 //! validated before these run, except task names, which `bitbake_recipe`
 //! validates as it emits them.
 
@@ -63,6 +63,35 @@ pub(super) fn devtool_build_image(
     Ok(args)
 }
 
+/// `devtool search <keyword>`.
+pub(super) fn devtool_search(keyword: String) -> Vec<String> {
+    vec!["search".into(), keyword]
+}
+
+/// `devtool find-recipe <recipe>`.
+pub(super) fn devtool_find_recipe() -> Vec<String> {
+    vec!["find-recipe".into()]
+}
+
+/// `devtool check-upgrade-status [recipes...] | -a`.
+pub(super) fn devtool_check_upgrade_status(
+    recipes: Option<Vec<String>>,
+    all: Option<bool>,
+) -> Vec<String> {
+    let mut args = vec!["check-upgrade-status".into()];
+    if all.unwrap_or(false) {
+        args.push("-a".into());
+    } else if let Some(recipes) = recipes {
+        args.extend(recipes);
+    }
+    args
+}
+
+/// `devtool configure-help -p <recipe>` always disables the pager.
+pub(super) fn devtool_configure_help() -> Vec<String> {
+    vec!["configure-help".into(), "-p".into()]
+}
+
 /// `devtool reset [-n]`; the caller appends the recipe.
 pub(super) fn devtool_reset(no_clean: Option<bool>) -> Vec<String> {
     if no_clean.unwrap_or(true) {
@@ -116,10 +145,13 @@ pub(super) fn bitbake_recipe(
     }
     if let Some(signatures) = dump_signatures {
         argv.push("-S".to_string());
-        argv.push(match signatures {
-            DumpSignatures::None => "none",
-            DumpSignatures::Printdiff => "printdiff",
-        }.to_string());
+        argv.push(
+            match signatures {
+                DumpSignatures::None => "none",
+                DumpSignatures::Printdiff => "printdiff",
+            }
+            .to_string(),
+        );
     }
     Ok(argv)
 }
@@ -154,7 +186,14 @@ pub(super) fn deploy_target(
     }
     args.push("-P".to_string());
     args.push(port.unwrap_or(22).to_string());
-    args.push(if flag(strip, false) { "-S" } else { "--no-strip" }.to_string());
+    args.push(
+        if flag(strip, false) {
+            "-S"
+        } else {
+            "--no-strip"
+        }
+        .to_string(),
+    );
     args.push(recipe);
     args.push(target);
     args

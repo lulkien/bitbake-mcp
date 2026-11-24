@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the eight execution tools over MCP stdio.
+"""Test the twelve execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
@@ -139,6 +139,31 @@ r, _ = call("devtool_build_image", {"image": "core-image-minimal",
                                      "add_packages": "a;b", "build_dir": BUILD})
 check("devtool_build_image rejects invalid add_packages",
       r.get("ok") is False and "devtool-args" not in r.get("stdout", ""), str(r))
+
+# Read-only devtool queries: exact argv and validation before exec.
+r, _ = call("devtool_search", {"keyword": "openssl", "build_dir": BUILD})
+check("devtool_search argv", "devtool-args:search openssl\n" in r.get("stdout", ""), str(r))
+r, _ = call("devtool_search", {"keyword": "-x", "build_dir": BUILD})
+check("devtool_search rejects leading option keyword",
+      r.get("ok") is False and r.get("error_code") == "INVALID_ARGUMENT"
+      and "devtool-args" not in r.get("stdout", ""), str(r))
+r, _ = call("devtool_find_recipe", {"recipe": "busybox", "build_dir": BUILD})
+check("devtool_find_recipe argv",
+      "devtool-args:find-recipe busybox\n" in r.get("stdout", ""), str(r))
+r, _ = call("devtool_check_upgrade_status", {"recipes": ["r1", "r2"], "build_dir": BUILD})
+check("devtool_check_upgrade_status recipes argv",
+      "devtool-args:check-upgrade-status r1 r2\n" in r.get("stdout", ""), str(r))
+r, _ = call("devtool_check_upgrade_status", {"all": True, "build_dir": BUILD})
+check("devtool_check_upgrade_status all argv",
+      "devtool-args:check-upgrade-status -a\n" in r.get("stdout", ""), str(r))
+r, _ = call("devtool_check_upgrade_status", {"recipes": [f"r{i}" for i in range(33)],
+                                               "build_dir": BUILD})
+check("devtool_check_upgrade_status rejects 33 recipes",
+      r.get("ok") is False and r.get("error_code") == "INVALID_ARGUMENT"
+      and "devtool-args" not in r.get("stdout", ""), str(r))
+r, _ = call("devtool_configure_help", {"recipe": "busybox", "build_dir": BUILD})
+check("devtool_configure_help always disables pager",
+      "devtool-args:configure-help -p busybox\n" in r.get("stdout", ""), str(r))
 
 # devtool status (no arguments beyond build_dir; the newline pins the end of
 # the argv so an appended flag would fail this check)
@@ -392,6 +417,13 @@ check("log header names command and cwd",
 check("over-cap log_bytes matches the file",
       r.get("log_bytes") == os.path.getsize(log), str(r))
 check("log lands in the default log dir", os.path.dirname(log) == LOG_DIR, log)
+
+r, _ = call("devtool_search", {"keyword": "flood", "build_dir": BUILD})
+log = r.get("log", "")
+text = open(log).read() if log and os.path.isfile(log) else ""
+check("devtool_search flood crosses INLINE_CAP and returns log",
+      r.get("ok") is True and "stdout" not in r and bool(log)
+      and text.count("devtool-flood:") == FLOOD, str(r)[:250])
 
 # a failing over-cap call: failure is visible from ok/exit_code + the log
 r, _ = call("bitbake_recipe", {"recipe": "floodfail", "build_dir": BUILD})

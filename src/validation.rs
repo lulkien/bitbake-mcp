@@ -76,10 +76,48 @@ pub fn validate_package_list(packages: &str) -> ValidationResult {
     }
 }
 
+/// Validate a single devtool search keyword.
+pub fn validate_search_keyword(keyword: &str) -> ValidationResult {
+    let ok = !keyword.is_empty()
+        && keyword.len() <= 128
+        && !keyword.starts_with('-')
+        && keyword.is_ascii()
+        && keyword.bytes().all(|b| (0x21..=0x7e).contains(&b));
+    if ok {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            error_code: "INVALID_ARGUMENT",
+            message: format!("Invalid search keyword: {keyword}"),
+        })
+    }
+}
+
+/// Validate `devtool check-upgrade-status` recipe selectors.
+pub fn validate_upgrade_status_selector(
+    recipes: Option<&[String]>,
+    all: Option<bool>,
+) -> ValidationResult {
+    match (recipes, all.unwrap_or(false)) {
+        (Some(recipes), false) if !recipes.is_empty() && recipes.len() <= 32 => {
+            for recipe in recipes {
+                validate_recipe_name(recipe)?;
+            }
+            Ok(())
+        }
+        (None, true) => Ok(()),
+        _ => Err(ValidationError {
+            error_code: "INVALID_ARGUMENT",
+            message: "Provide 1 to 32 recipes or set all=true".into(),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        validate_package_list, validate_recipe_name, validate_undeploy_target_selector,
+        validate_package_list, validate_recipe_name, validate_search_keyword,
+        validate_undeploy_target_selector, validate_upgrade_status_selector,
     };
 
     #[test]
@@ -99,9 +137,34 @@ mod tests {
     }
 
     #[test]
+    fn search_keyword_validation() {
+        assert!(validate_search_keyword("openssl").is_ok());
+        for keyword in ["", "-x", "a b", "é", "x".repeat(129).as_str()] {
+            assert!(
+                validate_search_keyword(keyword).is_err(),
+                "accepted {keyword:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn upgrade_status_selector_validation() {
+        assert!(validate_upgrade_status_selector(Some(&["a".into(), "b".into()]), None).is_ok());
+        assert!(validate_upgrade_status_selector(None, Some(true)).is_ok());
+        let too_many: Vec<String> = (0..33).map(|i| format!("r{i}")).collect();
+        assert!(validate_upgrade_status_selector(Some(&too_many), None).is_err());
+        assert!(validate_upgrade_status_selector(Some(&["-x".into()]), None).is_err());
+        assert!(validate_upgrade_status_selector(Some(&[]), None).is_err());
+        assert!(validate_upgrade_status_selector(Some(&["a".into()]), Some(true)).is_err());
+    }
+
+    #[test]
     fn package_lists_reject_invalid_recipe_names() {
         for packages in ["a;b", "a,,b", "", "-x,b", "a,../b"] {
-            assert!(validate_package_list(packages).is_err(), "accepted {packages:?}");
+            assert!(
+                validate_package_list(packages).is_err(),
+                "accepted {packages:?}"
+            );
         }
     }
 
@@ -128,7 +191,9 @@ pub fn validate_target(target: &str) -> ValidationResult {
         // A leading `-` would reach ssh/scp as an option (`-F@host`).
         let user_ok = !user.is_empty()
             && !user.starts_with('-')
-            && user.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+            && user
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
         // `:` is only valid in an IPv6 literal; scp reads `host:path` as a
         // remote file.
         let host_ok = !host.is_empty()

@@ -1,4 +1,4 @@
-//! The eight tools: the server type, its tool declarations, and the shared
+//! The twelve tools: the server type, its tool declarations, and the shared
 //! "resolve cwd, run, serialize" path every tool ends in.
 
 mod argv;
@@ -10,7 +10,8 @@ use crate::{config, digest, exec, validation};
 use envelope::validation_error;
 use requests::{
     BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolBuildImageReq, DevtoolBuildReq,
-    DevtoolModifyReq, DevtoolResetReq, DevtoolUndeployTargetReq,
+    DevtoolCheckUpgradeStatusReq, DevtoolModifyReq, DevtoolRecipeReq, DevtoolResetReq,
+    DevtoolSearchReq, DevtoolUndeployTargetReq,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -66,12 +67,7 @@ impl BitBakeServer {
     /// The single owner of "resolve cwd, run, serialize": validation and argv
     /// building differ per tool, but where a command runs and how its result is
     /// reported must not.
-    async fn run_cmd(
-        &self,
-        program: &str,
-        args: Vec<String>,
-        build_dir: Option<String>,
-    ) -> String {
+    async fn run_cmd(&self, program: &str, args: Vec<String>, build_dir: Option<String>) -> String {
         let cwd = self.resolve_cwd(build_dir);
         if let Err(v) = validation::validate_build_dir(&cwd) {
             return validation_error(&v);
@@ -101,8 +97,68 @@ impl BitBakeServer {
 
 #[tool_router]
 impl BitBakeServer {
+    /// Search recipes by name or summary.
+    #[tool(
+        description = "Run 'devtool search <keyword>' to find recipes by name or summary. keyword must be printable ASCII without whitespace or a leading hyphen."
+    )]
+    async fn devtool_search(
+        &self,
+        Parameters(DevtoolSearchReq { keyword, build_dir }): Parameters<DevtoolSearchReq>,
+    ) -> String {
+        if let Err(v) = validation::validate_search_keyword(&keyword) {
+            return validation_error(&v);
+        }
+        self.run_cmd("devtool", argv::devtool_search(keyword), build_dir)
+            .await
+    }
+
+    /// Find the recipe file for a recipe name.
+    #[tool(
+        description = "Run 'devtool find-recipe <recipe>' to print the recipe file path. This command is read-only."
+    )]
+    async fn devtool_find_recipe(
+        &self,
+        Parameters(DevtoolRecipeReq { recipe, build_dir }): Parameters<DevtoolRecipeReq>,
+    ) -> String {
+        self.run_tool_cmd("devtool", argv::devtool_find_recipe(), recipe, build_dir)
+            .await
+    }
+
+    /// Check upstream version status for selected recipes or all recipes.
+    #[tool(
+        description = "Run 'devtool check-upgrade-status [<recipe>...]' or 'devtool check-upgrade-status -a'. Provide 1 to 32 recipe names, or all=true to check every recipe."
+    )]
+    async fn devtool_check_upgrade_status(
+        &self,
+        Parameters(DevtoolCheckUpgradeStatusReq {
+            recipes,
+            all,
+            build_dir,
+        }): Parameters<DevtoolCheckUpgradeStatusReq>,
+    ) -> String {
+        if let Err(v) = validation::validate_upgrade_status_selector(recipes.as_deref(), all) {
+            return validation_error(&v);
+        }
+        let args = argv::devtool_check_upgrade_status(recipes, all);
+        self.run_cmd("devtool", args, build_dir).await
+    }
+
+    /// Print configure options without invoking a pager.
+    #[tool(
+        description = "Run 'devtool configure-help -p <recipe>' to print configure options for a workspace recipe. The -p flag always disables the pager."
+    )]
+    async fn devtool_configure_help(
+        &self,
+        Parameters(DevtoolRecipeReq { recipe, build_dir }): Parameters<DevtoolRecipeReq>,
+    ) -> String {
+        self.run_tool_cmd("devtool", argv::devtool_configure_help(), recipe, build_dir)
+            .await
+    }
+
     /// Run `devtool modify [--debug-build] <recipe>` in the build directory.
-    #[tool(description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe. Set debug_build=true to pass --debug-build and enable DEBUG_BUILD=1 in the workspace append for on-target debugging.")]
+    #[tool(
+        description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe. Set debug_build=true to pass --debug-build and enable DEBUG_BUILD=1 in the workspace append for on-target debugging."
+    )]
     async fn devtool_modify(
         &self,
         Parameters(DevtoolModifyReq {
@@ -112,12 +168,13 @@ impl BitBakeServer {
         }): Parameters<DevtoolModifyReq>,
     ) -> String {
         let argv = argv::devtool_modify(debug_build);
-        self.run_tool_cmd("devtool", argv, recipe, build_dir)
-            .await
+        self.run_tool_cmd("devtool", argv, recipe, build_dir).await
     }
 
     /// Run `devtool build [-c] [-s] <recipe>` in the build directory.
-    #[tool(description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first); set disable_parallel_make=true to pass -s and disable parallel make.")]
+    #[tool(
+        description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first); set disable_parallel_make=true to pass -s and disable parallel make."
+    )]
     async fn devtool_build(
         &self,
         Parameters(DevtoolBuildReq {
@@ -133,7 +190,9 @@ impl BitBakeServer {
     }
 
     /// Build an image with optional extra workspace packages.
-    #[tool(description = "Run 'devtool build-image [-p <packages>] <image>' in the build directory. image is required; add_packages is a comma-separated list of recipe names passed to -p.")]
+    #[tool(
+        description = "Run 'devtool build-image [-p <packages>] <image>' in the build directory. image is required; add_packages is a comma-separated list of recipe names passed to -p."
+    )]
     async fn devtool_build_image(
         &self,
         Parameters(DevtoolBuildImageReq {
@@ -150,7 +209,9 @@ impl BitBakeServer {
     }
 
     /// Run `devtool status` in the build directory.
-    #[tool(description = "Run 'devtool status' in the build directory to list the recipes currently in the workspace — i.e. those set up for modification with devtool modify — each with its external source tree and recipe file. Takes no other arguments.")]
+    #[tool(
+        description = "Run 'devtool status' in the build directory to list the recipes currently in the workspace — i.e. those set up for modification with devtool modify — each with its external source tree and recipe file. Takes no other arguments."
+    )]
     async fn devtool_status(
         &self,
         Parameters(BuildDirReq { build_dir }): Parameters<BuildDirReq>,
@@ -161,7 +222,9 @@ impl BitBakeServer {
     }
 
     /// Run `devtool reset [-n] <recipe>` in the build directory.
-    #[tool(description = "Run 'devtool reset <recipe>' to undo a devtool modify. Passes -n unless no_clean=false, i.e. the recipe's sysroot output is not cleaned by default.")]
+    #[tool(
+        description = "Run 'devtool reset <recipe>' to undo a devtool modify. Passes -n unless no_clean=false, i.e. the recipe's sysroot output is not cleaned by default."
+    )]
     async fn devtool_reset(
         &self,
         Parameters(DevtoolResetReq {
@@ -176,7 +239,9 @@ impl BitBakeServer {
     }
 
     /// Run bitbake for a recipe or task in the build directory.
-    #[tool(description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] [-k] [-n] [-S none|printdiff] <recipe>' in the build directory. Omit task to run the recipe's default task; task='listtasks' lists available tasks. continue_on_error=true adds -k; dry_run=true adds -n; dump_signatures selects the -S signature diagnostic.")]
+    #[tool(
+        description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] [-k] [-n] [-S none|printdiff] <recipe>' in the build directory. Omit task to run the recipe's default task; task='listtasks' lists available tasks. continue_on_error=true adds -k; dry_run=true adds -n; dump_signatures selects the -S signature diagnostic."
+    )]
     async fn bitbake_recipe(
         &self,
         Parameters(BitbakeRecipeReq {
@@ -218,7 +283,9 @@ impl BitBakeServer {
     }
 
     /// Run `devtool deploy-target` in the build directory.
-    #[tool(description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), dry_run (-n, default false), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22).")]
+    #[tool(
+        description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), dry_run (-n, default false), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22)."
+    )]
     async fn devtool_deploy_target(
         &self,
         Parameters(DeployTargetReq {
@@ -260,7 +327,9 @@ impl BitBakeServer {
     }
 
     /// Remove a recipe's deployed files from a target, or all deployed files.
-    #[tool(description = "Run 'devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>' to remove previously deployed files from a target. Set exactly one of recipe or all=true; all=true removes every recipe previously deployed to that target. no_host_check defaults to true; dry_run=true lists files without removing them; port defaults to 22.")]
+    #[tool(
+        description = "Run 'devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>' to remove previously deployed files from a target. Set exactly one of recipe or all=true; all=true removes every recipe previously deployed to that target. no_host_check defaults to true; dry_run=true lists files without removing them; port defaults to 22."
+    )]
     async fn devtool_undeploy_target(
         &self,
         Parameters(DevtoolUndeployTargetReq {

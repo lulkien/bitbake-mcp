@@ -1,6 +1,6 @@
 //! Deterministic BitBake/Yocto build MCP server.
 //!
-//! Eight tools, each running `bitbake` or `devtool` in a build directory.
+//! Twelve tools, each running `bitbake` or `devtool` in a build directory.
 //! Every tool response — success and error alike — is a structured
 //! `ok:true/false` JSON text block that also carries `elapsed_ms`, the
 //! wall-clock duration of that call, folded in at the dispatch boundary

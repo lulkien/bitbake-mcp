@@ -43,7 +43,8 @@ cp -R skills/bitbake-mcp ~/.hermes/skills/project/
 Runs `bitbake` or `devtool` in a build directory:
 `bitbake_recipe`, `devtool_status`, `devtool_modify`,
 `devtool_build`, `devtool_build_image`, `devtool_reset`,
-`devtool_deploy_target`, `devtool_undeploy_target`
+`devtool_deploy_target`, `devtool_undeploy_target`, `devtool_search`,
+`devtool_find_recipe`, `devtool_check_upgrade_status`, `devtool_configure_help`
 
 Each tool is documented in full below.
 
@@ -256,6 +257,43 @@ defaults to 22 and passes `-P`. A dry run lists the files that would be removed
 without changing the target. The command does not expose custom SSH executables,
 SSH key paths, or verbose status output.
 
+### `devtool_search`
+
+`devtool search <keyword>` finds recipes by name or summary. The keyword must be
+printable ASCII, contain no whitespace, not start with `-`, and be at most 128
+bytes. Large results are written to the call log.
+
+```json
+{ "keyword": "openssl" }
+```
+
+### `devtool_find_recipe`
+
+`devtool find-recipe <recipe>` prints the recipe file path and is read-only.
+
+```json
+{ "recipe": "busybox" }
+```
+
+### `devtool_check_upgrade_status`
+
+Check upstream version status for selected recipes, or every recipe. Provide 1
+to 32 validated recipe names, or `all: true`.
+
+```json
+{ "recipes": ["busybox", "openssl"] }
+{ "all": true }
+```
+
+### `devtool_configure_help`
+
+`devtool configure-help -p <recipe>` prints configure options for a workspace
+recipe. The `-p` flag is always passed to prevent an interactive pager.
+
+```json
+{ "recipe": "busybox" }
+```
+
 ### `bitbake_recipe`
 
 `bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>]
@@ -431,7 +469,7 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 ## Layout
 
 - `src/main.rs` — entry wiring: logging, config, stdio serve
-- `src/tools/` — the eight tools: `mod.rs` (server type, tool declarations, run
+- `src/tools/` — the twelve tools: `mod.rs` (server type, tool declarations, run
   path), `requests.rs` (request structs), `argv.rs` (argument building),
   `envelope.rs` (`ok` envelope, `elapsed_ms`), `handler.rs` (`ServerHandler`,
   call timing)

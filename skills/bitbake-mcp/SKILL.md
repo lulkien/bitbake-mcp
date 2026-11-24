@@ -12,7 +12,7 @@ metadata:
 
 # bitbake-mcp: BitBake/Yocto MCP server
 
-Eight MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
+Twelve MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
 while those fit 2 KiB, and a `digest` (≤ 4 KiB) when they do not. **A build's
 full output is in the log file, not in the result** — the `digest` says what
@@ -26,6 +26,10 @@ failed; open the log only when it is not enough.
   `devtool build` → `devtool reset`.
 - Getting a build onto a board: `devtool deploy_target`.
 - Removing files previously deployed to a board: `devtool_undeploy_target`.
+- Finding recipes by name or summary: `devtool_search`.
+- Finding a recipe file: `devtool_find_recipe`.
+- Checking upstream versions: `devtool_check_upgrade_status`.
+- Reading configure options for a workspace recipe: `devtool_configure_help`.
 - Any task where you would otherwise run `bitbake` or `devtool` in a terminal.
 
 Don't use for: setting up a Yocto build tree or editing recipes (edit files
@@ -56,6 +60,10 @@ explicitly when several build trees exist):
 | `devtool_reset` | `recipe`, `no_clean?` | undo a modify; passes `-n` unless `no_clean:false` |
 | `devtool_deploy_target` | `recipe`, `target` (`user@host`), `port?`, `strip?`, `no_host_check?`, `dry_run?`, `no_preserve?`, `no_check_space?` | deploy the recipe's `do_install` output to a board; `dry_run:true` passes `-n` to list files without deploying |
 | `devtool_undeploy_target` | `recipe?` or `all:true`, `target` (`user@host`), `port?`, `no_host_check?`, `dry_run?` | remove a recipe's deployed files or all deployed files from the target |
+| `devtool_search` | `keyword` | search by name or summary; printable ASCII, no whitespace or leading hyphen, max 128 bytes |
+| `devtool_find_recipe` | `recipe` | print the recipe file path |
+| `devtool_check_upgrade_status` | `recipes` (1–32 names) or `all:true` | report upstream version status |
+| `devtool_configure_help` | `recipe` | print workspace configure options without a pager |
 
 ## Workflows
 
