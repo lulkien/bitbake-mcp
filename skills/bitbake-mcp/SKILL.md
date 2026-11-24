@@ -3,7 +3,7 @@ name: bitbake-mcp
 description: Drive Yocto builds and devtool workflows via bitbake-mcp.
 version: 0.1.0
 author: Kien Hoang Luu (kien1.luu), Hermes Agent
-license: MIT
+license: Unlicense
 platforms: [linux]
 metadata:
   hermes:
