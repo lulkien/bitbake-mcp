@@ -92,9 +92,9 @@ impl DigestBuilder {
         }
     }
 
-    /// Mark the log as incomplete (a log write failed). `stderr_file` is the
-    /// kept `.err` file holding the stderr the log may lack; it is reported by
-    /// path and never read.
+    /// Mark the log as incomplete (a log write or pipe read failed).
+    /// `stderr_file` is the kept `.err` file holding the stderr the log may
+    /// lack; it is reported by path and never read.
     pub fn mark_incomplete(&mut self, stderr_file: Option<&Path>) {
         self.incomplete = true;
         self.stderr_file = stderr_file.map(|p| p.to_string_lossy().into_owned());

@@ -299,7 +299,9 @@ arrive ready to read while a build's banner and sstate statistics do not:
   inline with a note that the log is incomplete, a gap in that text is marked
   `[bitbake-mcp: N bytes omitted here; they are in <file>]`, and a stderr scratch
   file (`<log>.err`) that holds the only complete copy is kept and named in the
-  note. `.err` files count toward the 200-file retention
+  note. A pipe read error stops that stream with a note naming the stream and
+  bytes read, and marks `digest.incomplete` when a digest is present. `.err`
+  files count toward the 200-file retention
 - **cancellation** — a cancelled request kills the command's whole process
   group and leaves no log behind
 
@@ -356,7 +358,7 @@ Fields appear in this order and are omitted when empty:
 | `tasks`, `sstate`, `parse` | numbers from bitbake's `Tasks Summary`, `Sstate summary` and `Parsing of N .bb files` lines (last one wins) |
 | `tail` | failed or killed only: the last 15 lines that are not banner, progress or compile commands |
 | `lines` | line counts per class plus `total` |
-| `incomplete`, `stderr_file` | the log is incomplete (a log write failed); `stderr_file` is the kept `.err` holding the stderr the log may lack — open it |
+| `incomplete`, `stderr_file` | the log is incomplete (a log write failed or a pipe read failed); `stderr_file` is the kept `.err` holding the stderr the log may lack — open it |
 | `dropped` | size-cap steps applied, in order |
 
 `first_error` is the first compiler `error:`/`fatal error:` line in the failed

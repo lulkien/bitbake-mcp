@@ -22,7 +22,7 @@ mod log;
 mod spawn;
 
 use crate::digest::{CommandKind, DigestBuilder};
-use log::{LOG_KEEP, LogGuard, drain, finish_log, inline, open_log, prune_logs};
+use log::{LOG_KEEP, LogGuard, drain, finish_log, inline, open_log, prune_logs, read_notes};
 use spawn::GroupKill;
 use std::path::PathBuf;
 
@@ -140,7 +140,7 @@ async fn run_child(
     let want_digest = out.total > INLINE_CAP as u64 || err.total > INLINE_CAP as u64;
 
     let mut digest = None;
-    let mut note = String::new();
+    let mut note = read_notes(&out, &err);
     let mut logged: Option<(String, u64)> = None;
     let (mut out_in_log, mut err_in_log) = (false, false);
     if let Some(mut l) = log {
@@ -207,8 +207,12 @@ async fn run_child(
         // No log file: both streams are inline in full; digest them in the
         // log's own order (stdout, then stderr).
         let (o, e) = (out.head.clone(), err.head.clone());
+        let incomplete = !note.is_empty();
         digest = tokio::task::spawn_blocking(move || {
             let mut b = DigestBuilder::new(kind);
+            if incomplete {
+                b.mark_incomplete(None);
+            }
             b.feed(o.as_slice()).ok()?;
             b.feed(e.as_slice()).ok()?;
             Some(b.finish(exit_code))
@@ -222,7 +226,8 @@ async fn run_child(
     guard.paths.clear();
     let mut stderr = inline(&err, err_in_log, INLINE_CAP);
     if !note.is_empty() {
-        let n = format!("\n[bitbake-mcp: {}the log is incomplete]\n", note);
+        let incomplete_thing = if logged.is_some() { "log" } else { "output" };
+        let n = format!("\n[bitbake-mcp: {}the {incomplete_thing} is incomplete]\n", note);
         stderr.get_or_insert_with(String::new).push_str(&n);
     }
     ExecResult {

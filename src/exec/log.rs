@@ -98,15 +98,17 @@ pub(super) struct Capture {
     pub(super) head: Vec<u8>,
     pub(super) total: u64,
     pub(super) last: Option<u8>,
+    /// A pipe read failure, if reading stopped before EOF.
+    pub(super) read_error: Option<String>,
     /// The sink, if it is still healthy at the end.
     pub(super) sink: Option<tokio::fs::File>,
 }
 
-/// Copy `reader` to `sink` (when given) until EOF, keeping the first
-/// `head_cap` bytes in memory. If the sink (the file at `sink_path`) fails
-/// mid-stream it is dropped and the stream is kept in memory from then on; the
-/// bytes between the kept head and the failure point are in that file, so the
-/// kept text names the gap and the file instead of silently skipping it.
+/// Copy `reader` to `sink` (when given) until EOF or a read error, keeping the
+/// first `head_cap` bytes in memory. If the sink (the file at `sink_path`)
+/// fails mid-stream it is dropped and the stream is kept in memory from then
+/// on; the bytes between the kept head and the failure point are in that file,
+/// so the kept text names the gap and the file instead of silently skipping it.
 pub(super) async fn drain<R: tokio::io::AsyncRead + Unpin>(
     mut reader: R,
     mut sink: Option<tokio::fs::File>,
@@ -114,11 +116,22 @@ pub(super) async fn drain<R: tokio::io::AsyncRead + Unpin>(
     mut head_cap: usize,
 ) -> Capture {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let mut cap = Capture { head: Vec::new(), total: 0, last: None, sink: None };
+    let mut cap = Capture {
+        head: Vec::new(),
+        total: 0,
+        last: None,
+        read_error: None,
+        sink: None,
+    };
     let mut buf = vec![0u8; 64 * 1024];
     loop {
         let n = match reader.read(&mut buf).await {
-            Ok(0) | Err(_) => break,
+            Ok(0) => break,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => {
+                cap.read_error = Some(e.to_string());
+                break;
+            }
             Ok(n) => n,
         };
         let chunk = &buf[..n];
@@ -142,6 +155,20 @@ pub(super) async fn drain<R: tokio::io::AsyncRead + Unpin>(
     }
     cap.sink = sink;
     cap
+}
+
+/// Notes for streams that ended with a pipe read error, in stdout/stderr order.
+pub(super) fn read_notes(out: &Capture, err: &Capture) -> String {
+    let mut note = String::new();
+    for (name, capture) in [("stdout", out), ("stderr", err)] {
+        if let Some(error) = &capture.read_error {
+            note.push_str(&format!(
+                "{name} could not be fully read ({error}) after {} bytes; ",
+                capture.total
+            ));
+        }
+    }
+    note
 }
 
 /// Text standing in for `missing` bytes that are only in the file `path`.
@@ -227,5 +254,79 @@ impl Drop for LogGuard {
         for p in &self.paths {
             let _ = std::fs::remove_file(p);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Capture, drain, read_notes};
+    use std::collections::VecDeque;
+    use std::io;
+    use std::path::Path;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+    use tokio::io::ReadBuf;
+
+    struct Script(VecDeque<io::Result<Vec<u8>>>);
+
+    impl tokio::io::AsyncRead for Script {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            match self.0.pop_front() {
+                Some(Ok(bytes)) => {
+                    buf.put_slice(&bytes);
+                    Poll::Ready(Ok(()))
+                }
+                Some(Err(error)) => Poll::Ready(Err(error)),
+                None => Poll::Ready(Ok(())),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn drain_read_error_mid_stream_is_recorded() {
+        let script = Script(VecDeque::from([
+            Ok(b"abc\n".to_vec()),
+            Err(io::Error::other("boom")),
+            Ok(b"lost".to_vec()),
+        ]));
+        let capture = drain(script, None, Path::new("/x"), usize::MAX).await;
+
+        assert_eq!(capture.read_error.as_deref(), Some("boom"));
+        assert_eq!(capture.total, 4);
+        assert_eq!(capture.head, b"abc\n");
+    }
+
+    #[tokio::test]
+    async fn drain_retries_interrupted() {
+        let script = Script(VecDeque::from([
+            Err(io::Error::from(io::ErrorKind::Interrupted)),
+            Ok(b"x".to_vec()),
+        ]));
+        let capture = drain(script, None, Path::new("/x"), usize::MAX).await;
+
+        assert!(capture.read_error.is_none());
+        assert_eq!(capture.total, 1);
+        assert_eq!(capture.head, b"x");
+    }
+
+    fn capture(read_error: Option<&str>, total: u64) -> Capture {
+        Capture {
+            head: Vec::new(),
+            total,
+            last: None,
+            read_error: read_error.map(str::to_string),
+            sink: None,
+        }
+    }
+
+    #[test]
+    fn read_notes_marks_incomplete() {
+        let note = read_notes(&capture(Some("boom"), 4), &capture(None, 0));
+        assert!(note.contains("stdout could not be fully read (boom) after 4 bytes"));
+        assert_eq!(read_notes(&capture(None, 0), &capture(None, 0)), "");
     }
 }

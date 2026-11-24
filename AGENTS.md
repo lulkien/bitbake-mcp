@@ -196,7 +196,9 @@ Invariants — keep every one:
   file is deleted only after stderr is safely in the log. `test_exec.py` drives
   this with RLIMIT_FSIZE fault injection. Sink writes are flushed per chunk:
   tokio reports a background write error only on the next operation, so an
-  unflushed last chunk would fail silently.
+  unflushed last chunk would fail silently. A pipe read error also adds a note
+  naming the stream and bytes read; `digest.incomplete` is set when a digest is
+  present. Interrupted reads are retried.
 - Every payload is `ok`-shaped: `call_tool` wraps rmcp's deserialization errors
   into `ok:false` + `elapsed_ms`, and sets `isError` when `ok` is false.
 - The digest is derived, never a replacement: `src/digest/` builds it from
