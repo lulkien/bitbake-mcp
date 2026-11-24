@@ -437,4 +437,4 @@ isolated `HOME`, so the test never touches the real `~/.cache/bitbake-mcp`.
 
 ## License
 
-MIT
+[Unlicense](LICENSE) — public domain.
