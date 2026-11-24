@@ -73,6 +73,17 @@ explicitly when several build trees exist):
 | `devtool_update_recipe` | `recipe`, `mode?`, `append?` (absolute directory), `dry_run?`, `no_remove?` | write workspace changes to the original layer or an append layer; dry-run first |
 | `devtool_finish` | `recipe`, `destination` (layer name or absolute directory), `mode?`, `dry_run?`, `no_clean?` | write changes into a layer and remove the workspace entry; dry-run first |
 
+## Destructive tools
+
+The server marks `bitbake_recipe`, `devtool_build`, `devtool_reset`,
+`devtool_update_recipe`, `devtool_finish`, `devtool_deploy_target`, and
+`devtool_undeploy_target` as destructive in MCP metadata and their descriptions.
+Annotations are hints; they do not enforce confirmation. Confirm with the user
+before running these tools. Use `dry_run: true` first where the tool supports it
+(`bitbake_recipe`, `devtool_update_recipe`, `devtool_finish`,
+`devtool_deploy_target`, and `devtool_undeploy_target`). Never run
+`bitbake_recipe` clean, cleansstate, or cleanall tasks without asking first.
+
 ## Workflows
 
 **Modify → build → deploy → clean up.** `devtool_status` (what is already

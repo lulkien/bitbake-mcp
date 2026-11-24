@@ -100,7 +100,8 @@ impl BitBakeServer {
 impl BitBakeServer {
     /// Add a recipe from a fetch URI into the workspace.
     #[tool(
-        description = "Run 'devtool add [-V version] [-S rev | -a] [-B branch] <recipe> <uri>'. Writes only to the workspace layer and workspace/sources/."
+        description = "Run 'devtool add [-V version] [-S rev | -a] [-B branch] <recipe> <uri>'. Writes only to the workspace layer and workspace/sources/.",
+        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
     )]
     async fn devtool_add(
         &self,
@@ -148,7 +149,8 @@ impl BitBakeServer {
 
     /// Upgrade a workspace recipe in place.
     #[tool(
-        description = "Run 'devtool upgrade [-V version] [-S rev] [-B branch] [--no-patch] <recipe>'. Writes only to the workspace layer and workspace/sources/."
+        description = "Run 'devtool upgrade [-V version] [-S rev] [-B branch] [--no-patch] <recipe>'. Writes only to the workspace layer and workspace/sources/.",
+        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
     )]
     async fn devtool_upgrade(
         &self,
@@ -186,7 +188,8 @@ impl BitBakeServer {
 
     /// Write workspace changes back to the original recipe layer or append layer.
     #[tool(
-        description = "Run 'devtool update-recipe [-m mode] [-a layer] [-N] [-n] <recipe>'. Writes committed workspace changes to the original recipe's layer, or a bbappend in append; run with dry_run=true first to preview changes."
+        description = "Run 'devtool update-recipe [-m mode] [-a layer] [-N] [-n] <recipe>'. Writes committed workspace changes to the original recipe's layer, or a bbappend in append; run with dry_run=true first to preview changes. Destructive: rewrites recipe files and may remove obsolete patches.",
+        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = false)
     )]
     async fn devtool_update_recipe(
         &self,
@@ -212,7 +215,8 @@ impl BitBakeServer {
 
     /// Move a workspace recipe into a layer and remove its workspace entry.
     #[tool(
-        description = "Run 'devtool finish [-m mode] [-N] [-n] <recipe> <destination>'. Writes the recipe changes into destination and removes the recipe from the workspace; run with dry_run=true first to preview changes."
+        description = "Run 'devtool finish [-m mode] [-N] [-n] <recipe> <destination>'. Writes the recipe changes into destination and removes the recipe from the workspace; run with dry_run=true first to preview changes. Destructive: writes to the destination layer and removes the workspace entry.",
+        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = false)
     )]
     async fn devtool_finish(
         &self,
@@ -238,7 +242,8 @@ impl BitBakeServer {
 
     /// Search recipes by name or summary.
     #[tool(
-        description = "Run 'devtool search <keyword>' to find recipes by name or summary. keyword must be printable ASCII without whitespace or a leading hyphen."
+        description = "Run 'devtool search <keyword>' to find recipes by name or summary. keyword must be printable ASCII without whitespace or a leading hyphen. Read-only.",
+        annotations(read_only_hint = true, open_world_hint = false)
     )]
     async fn devtool_search(
         &self,
@@ -253,7 +258,8 @@ impl BitBakeServer {
 
     /// Find the recipe file for a recipe name.
     #[tool(
-        description = "Run 'devtool find-recipe <recipe>' to print the recipe file path. This command is read-only."
+        description = "Run 'devtool find-recipe <recipe>' to print the recipe file path. This command is read-only.",
+        annotations(read_only_hint = true, open_world_hint = false)
     )]
     async fn devtool_find_recipe(
         &self,
@@ -265,7 +271,8 @@ impl BitBakeServer {
 
     /// Check upstream version status for selected recipes or all recipes.
     #[tool(
-        description = "Run 'devtool check-upgrade-status [<recipe>...]' or 'devtool check-upgrade-status -a'. Provide 1 to 32 recipe names, or all=true to check every recipe."
+        description = "Run 'devtool check-upgrade-status [<recipe>...]' or 'devtool check-upgrade-status -a'. Provide 1 to 32 recipe names, or all=true to check every recipe. Read-only.",
+        annotations(read_only_hint = true, open_world_hint = true)
     )]
     async fn devtool_check_upgrade_status(
         &self,
@@ -284,7 +291,8 @@ impl BitBakeServer {
 
     /// Print configure options without invoking a pager.
     #[tool(
-        description = "Run 'devtool configure-help -p <recipe>' to print configure options for a workspace recipe. The -p flag always disables the pager."
+        description = "Run 'devtool configure-help -p <recipe>' to print configure options for a workspace recipe. The -p flag always disables the pager.",
+        annotations(destructive_hint = false, idempotent_hint = true, open_world_hint = true)
     )]
     async fn devtool_configure_help(
         &self,
@@ -296,7 +304,8 @@ impl BitBakeServer {
 
     /// Run `devtool modify [--debug-build] <recipe>` in the build directory.
     #[tool(
-        description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe. Set debug_build=true to pass --debug-build and enable DEBUG_BUILD=1 in the workspace append for on-target debugging."
+        description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe. Set debug_build=true to pass --debug-build and enable DEBUG_BUILD=1 in the workspace append for on-target debugging.",
+        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
     )]
     async fn devtool_modify(
         &self,
@@ -312,7 +321,8 @@ impl BitBakeServer {
 
     /// Run `devtool build [-c] [-s] <recipe>` in the build directory.
     #[tool(
-        description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first); set disable_parallel_make=true to pass -s and disable parallel make."
+        description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first); set disable_parallel_make=true to pass -s and disable parallel make. Destructive: clean=true removes the recipe's build results.",
+        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = true)
     )]
     async fn devtool_build(
         &self,
@@ -330,7 +340,8 @@ impl BitBakeServer {
 
     /// Build an image with optional extra workspace packages.
     #[tool(
-        description = "Run 'devtool build-image [-p <packages>] <image>' in the build directory. image is required; add_packages is a comma-separated list of recipe names passed to -p."
+        description = "Run 'devtool build-image [-p <packages>] <image>' in the build directory. image is required; add_packages is a comma-separated list of recipe names passed to -p.",
+        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
     )]
     async fn devtool_build_image(
         &self,
@@ -349,7 +360,8 @@ impl BitBakeServer {
 
     /// Run `devtool status` in the build directory.
     #[tool(
-        description = "Run 'devtool status' in the build directory to list the recipes currently in the workspace — i.e. those set up for modification with devtool modify — each with its external source tree and recipe file. Takes no other arguments."
+        description = "Run 'devtool status' in the build directory to list the recipes currently in the workspace — i.e. those set up for modification with devtool modify — each with its external source tree and recipe file. Takes no other arguments. Read-only.",
+        annotations(read_only_hint = true, open_world_hint = false)
     )]
     async fn devtool_status(
         &self,
@@ -362,7 +374,8 @@ impl BitBakeServer {
 
     /// Run `devtool reset [-n] <recipe>` in the build directory.
     #[tool(
-        description = "Run 'devtool reset <recipe>' to undo a devtool modify. Passes -n unless no_clean=false, i.e. the recipe's sysroot output is not cleaned by default."
+        description = "Run 'devtool reset <recipe>' to undo a devtool modify. Passes -n unless no_clean=false, i.e. the recipe's sysroot output is not cleaned by default. Destructive: removes the recipe from the workspace and can clean its sysroot output.",
+        annotations(destructive_hint = true, idempotent_hint = true, open_world_hint = false)
     )]
     async fn devtool_reset(
         &self,
@@ -379,7 +392,8 @@ impl BitBakeServer {
 
     /// Run bitbake for a recipe or task in the build directory.
     #[tool(
-        description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] [-k] [-n] [-S none|printdiff] <recipe>' in the build directory. Omit task to run the recipe's default task; task='listtasks' lists available tasks. continue_on_error=true adds -k; dry_run=true adds -n; dump_signatures selects the -S signature diagnostic."
+        description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] [-k] [-n] [-S none|printdiff] <recipe>' in the build directory. Omit task to run the recipe's default task; task='listtasks' lists available tasks. continue_on_error=true adds -k; dry_run=true adds -n; dump_signatures selects the -S signature diagnostic. Destructive: tasks such as cleansstate or cleanall remove sstate or downloads; use dry_run=true first.",
+        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = true)
     )]
     async fn bitbake_recipe(
         &self,
@@ -423,7 +437,8 @@ impl BitBakeServer {
 
     /// Run `devtool deploy-target` in the build directory.
     #[tool(
-        description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), dry_run (-n, default false), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22)."
+        description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), dry_run (-n, default false), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22). Destructive: overwrites files on the remote target; use dry_run=true first.",
+        annotations(destructive_hint = true, idempotent_hint = true, open_world_hint = true)
     )]
     async fn devtool_deploy_target(
         &self,
@@ -467,7 +482,8 @@ impl BitBakeServer {
 
     /// Remove a recipe's deployed files from a target, or all deployed files.
     #[tool(
-        description = "Run 'devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>' to remove previously deployed files from a target. Set exactly one of recipe or all=true; all=true removes every recipe previously deployed to that target. no_host_check defaults to true; dry_run=true lists files without removing them; port defaults to 22."
+        description = "Run 'devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>' to remove previously deployed files from a target. Set exactly one of recipe or all=true; all=true removes every recipe previously deployed to that target. no_host_check defaults to true; dry_run=true lists files without removing them; port defaults to 22. Destructive: deletes deployed files from the remote target; use dry_run=true first.",
+        annotations(destructive_hint = true, idempotent_hint = true, open_world_hint = true)
     )]
     async fn devtool_undeploy_target(
         &self,

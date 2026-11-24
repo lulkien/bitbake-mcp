@@ -162,6 +162,7 @@ current one has already loaded its skill index.
 |---|---|
 | Entry wiring (logging, config, serve) | `src/main.rs` |
 | Tool declarations, run path | `src/tools/mod.rs` |
+| MCP tool annotations and model-facing safety descriptions | Each `#[tool]` in `src/tools/mod.rs`; keep `test_exec.py`'s expected tools/list annotations table in sync |
 | Request structs, argv building, `ok` envelope, call timing | `src/tools/{requests,argv,envelope,handler}.rs` |
 | Trust-boundary validation (recipe, target, task) | `src/validation.rs` |
 | Process launch (direct argv, or `bash -c "source <init> .; ..."`), kill | `src/exec/{mod,spawn}.rs` |

@@ -58,6 +58,42 @@ def check(label, cond, detail=""):
     if not cond: fail += 1
     print(f"[{'PASS' if cond else 'FAIL'}] {label}" + (f"\n      {detail}" if detail and not cond else ""))
 
+# Tool metadata is public MCP behavior: keep this table in sync with the
+# annotations and warning sentences on the Rust tool declarations.
+send({"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}})
+listed_tools = recv().get("result", {}).get("tools", [])
+expected_annotations = {
+    "bitbake_recipe": {"destructiveHint": True, "idempotentHint": False, "openWorldHint": True},
+    "devtool_status": {"readOnlyHint": True, "openWorldHint": False},
+    "devtool_modify": {"destructiveHint": False, "idempotentHint": False, "openWorldHint": True},
+    "devtool_build": {"destructiveHint": True, "idempotentHint": False, "openWorldHint": True},
+    "devtool_build_image": {"destructiveHint": False, "idempotentHint": False, "openWorldHint": True},
+    "devtool_reset": {"destructiveHint": True, "idempotentHint": True, "openWorldHint": False},
+    "devtool_deploy_target": {"destructiveHint": True, "idempotentHint": True, "openWorldHint": True},
+    "devtool_undeploy_target": {"destructiveHint": True, "idempotentHint": True, "openWorldHint": True},
+    "devtool_search": {"readOnlyHint": True, "openWorldHint": False},
+    "devtool_find_recipe": {"readOnlyHint": True, "openWorldHint": False},
+    "devtool_check_upgrade_status": {"readOnlyHint": True, "openWorldHint": True},
+    "devtool_configure_help": {"destructiveHint": False, "idempotentHint": True, "openWorldHint": True},
+    "devtool_add": {"destructiveHint": False, "idempotentHint": False, "openWorldHint": True},
+    "devtool_upgrade": {"destructiveHint": False, "idempotentHint": False, "openWorldHint": True},
+    "devtool_update_recipe": {"destructiveHint": True, "idempotentHint": False, "openWorldHint": False},
+    "devtool_finish": {"destructiveHint": True, "idempotentHint": False, "openWorldHint": False},
+}
+listed_by_name = {tool["name"]: tool for tool in listed_tools}
+check("tools/list has exactly 16 tools", set(listed_by_name) == set(expected_annotations),
+      ", ".join(sorted(listed_by_name)))
+for tool_name, expected in expected_annotations.items():
+    tool = listed_by_name.get(tool_name, {})
+    check(f"annotations {tool_name}", tool.get("annotations") == expected,
+          f"expected {expected}, got {tool.get('annotations')}")
+    if expected.get("readOnlyHint"):
+        check(f"description {tool_name} says read-only",
+              "read-only" in tool.get("description", "").lower(), tool.get("description", ""))
+    elif expected.get("destructiveHint"):
+        check(f"description {tool_name} warns destructive",
+              "Destructive:" in tool.get("description", ""), tool.get("description", ""))
+
 # The sourced command display must quote an init path exactly as the shell does.
 space_dir = os.path.join(BASE, "init path")
 os.makedirs(space_dir)

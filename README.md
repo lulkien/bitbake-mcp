@@ -49,6 +49,35 @@ Runs `bitbake` or `devtool` in a build directory:
 
 Each tool is documented in full below.
 
+### Tool annotations and safety
+
+The server publishes MCP `readOnlyHint`, `destructiveHint`, `idempotentHint`,
+and `openWorldHint` annotations. These are client hints, not server-side
+permissions; clients may ignore them. The first `devtool` call in a fresh build
+directory creates and enables the workspace layer in `conf/bblayers.conf` (a
+one-time additive setup), including calls to tools marked read-only.
+
+| Tools | Read-only | Destructive | Idempotent | Open world |
+|---|---:|---:|---:|---:|
+| `devtool_status`, `devtool_search`, `devtool_find_recipe` | yes | — | — | no |
+| `devtool_check_upgrade_status` | yes | — | — | yes |
+| `devtool_configure_help` | no | no | yes | yes |
+| `devtool_modify`, `devtool_add`, `devtool_upgrade` | no | no | no | yes |
+| `devtool_build_image` | no | no | no | yes |
+| `devtool_build` | no | yes | no | yes |
+| `bitbake_recipe` | no | yes | no | yes |
+| `devtool_reset` | no | yes | yes | no |
+| `devtool_update_recipe` | no | yes | no | no |
+| `devtool_finish` | no | yes | no | no |
+| `devtool_deploy_target`, `devtool_undeploy_target` | no | yes | yes | yes |
+
+Claude Code does not use these hints for permission decisions; configure its
+MCP permission rules directly. Use `permissions.ask` for the seven destructive
+tools and `permissions.allow` only for the four read-only tools you choose to
+trust. Claude
+Desktop uses annotations to group read-only tools, though its Auto mode may
+still prompt. Review each tool's description before calling it.
+
 ## Build
 
 ```bash
