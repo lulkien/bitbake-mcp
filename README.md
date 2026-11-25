@@ -150,6 +150,15 @@ build_dir  = "/home/worker/atlas/build"
 All values are shell-quoted and tool inputs are validated, so injection is
 blocked.
 
+## Long builds and client timeouts
+
+bitbake-mcp has no server-side command timeout. For multi-hour builds, raise
+the timeout in the MCP client that launches the server: Hermes uses the
+per-server `timeout` setting in **seconds**, Codex uses `tool_timeout_sec` in
+**seconds**, and Claude Code uses `MCP_TOOL_TIMEOUT` in **milliseconds**.
+A client timeout sends `notifications/cancelled`; bitbake-mcp terminates the
+running command's process group.
+
 ## Tool reference
 
 Run BitBake and devtool commands in a Yocto build directory. Every command runs

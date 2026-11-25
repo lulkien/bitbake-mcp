@@ -135,6 +135,12 @@ For a JSON-config client (Claude Desktop, etc.):
 { "mcpServers": { "bitbake-mcp": { "command": "/home/<you>/.cargo/bin/bitbake-mcp" } } }
 ```
 
+For multi-hour builds, configure the MCP client's timeout: Hermes per-server
+`timeout` (**seconds**), Codex `tool_timeout_sec` (**seconds**), or Claude Code
+`MCP_TOOL_TIMEOUT` (**milliseconds**). bitbake-mcp has no server-side timeout;
+a client timeout sends `notifications/cancelled` and terminates the running
+command group.
+
 Verify with the client, then restart it if it caches tools:
 
 ```bash
