@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Test the sixteen execution tools over MCP stdio.
+"""Test the eighteen execution tools over MCP stdio.
 
 Uses the PATH-injected shims from shims.py (this script creates them; nothing
 has to be prepared by hand) so we can verify exact command construction — argv
 and cwd — without a Yocto build.
 """
-import json, os, shutil, subprocess, sys, tempfile, time
+import json, os, shutil, subprocess, sys, tempfile, time, select, signal
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import shims
@@ -79,9 +79,11 @@ expected_annotations = {
     "devtool_upgrade": {"destructiveHint": False, "idempotentHint": False, "openWorldHint": True},
     "devtool_update_recipe": {"destructiveHint": True, "idempotentHint": False, "openWorldHint": False},
     "devtool_finish": {"destructiveHint": True, "idempotentHint": False, "openWorldHint": False},
+    "job_wait": {"readOnlyHint": True, "idempotentHint": True, "openWorldHint": False},
+    "job_cancel": {"destructiveHint": True, "idempotentHint": True, "openWorldHint": False},
 }
 listed_by_name = {tool["name"]: tool for tool in listed_tools}
-check("tools/list has exactly 16 tools", set(listed_by_name) == set(expected_annotations),
+check("tools/list has exactly 18 tools", set(listed_by_name) == set(expected_annotations),
       ", ".join(sorted(listed_by_name)))
 for tool_name, expected in expected_annotations.items():
     tool = listed_by_name.get(tool_name, {})
@@ -93,6 +95,12 @@ for tool_name, expected in expected_annotations.items():
     elif expected.get("destructiveHint"):
         check(f"description {tool_name} warns destructive",
               "Destructive:" in tool.get("description", ""), tool.get("description", ""))
+
+wait_schema = listed_by_name.get("job_wait", {}).get("inputSchema", {})
+check("job_wait schema requires job_id and allows optional wait_secs",
+      wait_schema.get("required") == ["job_id"]
+      and "wait_secs" in wait_schema.get("properties", {})
+      and "wait_secs" not in wait_schema.get("required", []), str(wait_schema))
 
 # The sourced command display must quote an init path exactly as the shell does.
 space_dir = os.path.join(BASE, "init path")
@@ -712,6 +720,178 @@ check("no log dir -> over-cap output still returned inline",
       str(r2)[:200])
 p2.stdin.close()
 p2.wait(timeout=5)
+
+# ---- wait-then-detach job lifecycle --------------------------------------
+job_env = dict(ENV)
+job_env["BITBAKE_MCP_DETACH_AFTER_MS"] = "300"
+job_env["SHIM_PIDDIR"] = BASE
+
+def start_job_server(env=job_env):
+    p = subprocess.Popen([BIN], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, env=env, cwd=BASE)
+    def send_job(obj):
+        p.stdin.write((json.dumps(obj) + "\n").encode()); p.stdin.flush()
+    send_job({"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+        "protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"jobs","version":"0"}}})
+    json.loads(p.stdout.readline())
+    send_job({"jsonrpc":"2.0","method":"notifications/initialized"})
+    return p, send_job
+
+def recv_job_ids(p, wanted, timeout=6):
+    replies = {}
+    deadline = time.monotonic() + timeout
+    while wanted - replies.keys() and time.monotonic() < deadline:
+        ready, _, _ = select.select([p.stdout], [], [], max(0, deadline - time.monotonic()))
+        if not ready: break
+        line = p.stdout.readline()
+        if not line: break
+        reply = json.loads(line)
+        if reply.get("id") in wanted: replies[reply["id"]] = reply
+    return replies
+
+def job_call(p, send_job, name, args, rid):
+    send_job({"jsonrpc":"2.0","id":rid,"method":"tools/call",
+              "params":{"name":name,"arguments":args}})
+    reply = recv_job_ids(p, {rid}).get(rid, {})
+    if reply.get("error"):
+        return {"ok":False,"error_code":"JSONRPC"}, reply
+    try:
+        return json.loads(reply["result"]["content"][0]["text"]), reply
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+        return {"ok":False,"error_code":"NO_REPLY"}, reply
+
+def pid_gone(path):
+    try:
+        pid = int(open(path).read().strip())
+    except (OSError, ValueError):
+        return False
+    try:
+        return open(f"/proc/{pid}/stat").read().rsplit(")", 1)[1].split()[0] == "Z"
+    except OSError:
+        return True
+
+def wait_pid_gone(path, seconds=3):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if pid_gone(path): return True
+        time.sleep(.03)
+    return pid_gone(path)
+
+def launch_sleep(p, send_job, name, recipe, rid):
+    pidfile = os.path.join(BASE, recipe + ".pid")
+    try: os.unlink(pidfile)
+    except FileNotFoundError: pass
+    result, raw = job_call(p, send_job, name, {"recipe":recipe,"build_dir":BUILD}, rid)
+    return result, raw, pidfile
+
+jp, jsend = start_job_server()
+slow, _, slow_pidfile = launch_sleep(jp, jsend, "bitbake_recipe", "sleep-5", 100)
+check("slow command detaches with a job id and log",
+      slow.get("ok") is True and slow.get("status") == "running" and slow.get("job_id")
+      and slow.get("command") and os.path.isfile(slow.get("log", "")), str(slow))
+job_id = slow.get("job_id", 0)
+logs_before_busy = set(logs())
+busy, _ = job_call(jp, jsend, "bitbake_recipe", {"recipe":"sleep-5","build_dir":BUILD}, 101)
+busy_slash, _ = job_call(jp, jsend, "bitbake_recipe", {"recipe":"sleep-5","build_dir":BUILD + "/"}, 102)
+check("detached same build dir returns BUSY with the existing job id",
+      busy.get("error_code") == "BUSY" and busy.get("job_id") == job_id
+      and busy_slash.get("error_code") == "BUSY" and busy_slash.get("job_id") == job_id
+      and set(logs()) == logs_before_busy, f"{busy} / {busy_slash}")
+other, _ = job_call(jp, jsend, "bitbake_recipe", {"recipe":"otherbuild","build_dir":SH["other_build_dir"]}, 103)
+check("other build dir is not BUSY", other.get("ok") is True and other.get("status") != "running", str(other))
+still_running, _ = job_call(jp, jsend, "job_wait", {"job_id":job_id,"wait_secs":1}, 104)
+check("job_wait timeout returns running", still_running.get("status") == "running" and still_running.get("job_id") == job_id, str(still_running))
+check("job_wait running includes command and build_dir",
+      still_running.get("command") == "bitbake sleep-5"
+      and still_running.get("build_dir") == BUILD, str(still_running))
+
+# Cancelling the wait request itself must not cancel the server-owned job.
+jsend({"jsonrpc":"2.0","id":105,"method":"tools/call","params":{"name":"job_wait","arguments":{"job_id":job_id,"wait_secs":30}}})
+time.sleep(.1)
+jsend({"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":105}})
+still_running, _ = job_call(jp, jsend, "job_wait", {"job_id":job_id,"wait_secs":1}, 106)
+check("cancelling job_wait leaves the command running", still_running.get("status") == "running" and not pid_gone(slow_pidfile), str(still_running))
+
+cancelled, cancel_raw = job_call(jp, jsend, "job_cancel", {"job_id":job_id}, 107)
+gone = wait_pid_gone(slow_pidfile)
+log_path = slow.get("log", "")
+for _ in range(100):
+    if not (os.path.exists(log_path) or os.path.exists(os.path.splitext(log_path)[0] + ".err")): break
+    time.sleep(.02)
+check("job_cancel kills the process group and removes partial logs",
+      cancelled.get("status") == "cancelled" and gone and not os.path.exists(log_path)
+      and not os.path.exists(os.path.splitext(log_path)[0] + ".err"), str(cancelled))
+cancel_wait, cancel_wait_raw = job_call(jp, jsend, "job_wait", {"job_id":job_id,"wait_secs":1}, 108)
+cancel_repeat, _ = job_call(jp, jsend, "job_cancel", {"job_id":job_id}, 109)
+check("cancelled job_wait is an isError CANCELLED and cancel is idempotent",
+      cancel_wait.get("error_code") == "CANCELLED" and cancel_wait_raw.get("result",{}).get("isError") is True
+      and cancel_repeat.get("status") == "cancelled", f"{cancel_wait} / {cancel_repeat}")
+
+# A wait already in flight is woken by job_cancel; concurrent cancels both settle.
+concurrent, _, concurrent_pid = launch_sleep(jp, jsend, "bitbake_recipe", "sleep-5", 110)
+concurrent_id = concurrent.get("job_id", 0)
+jsend({"jsonrpc":"2.0","id":111,"method":"tools/call","params":{"name":"job_wait","arguments":{"job_id":concurrent_id,"wait_secs":30}}})
+jsend({"jsonrpc":"2.0","id":112,"method":"tools/call","params":{"name":"job_cancel","arguments":{"job_id":concurrent_id}}})
+both = recv_job_ids(jp, {111,112})
+wait_payload = json.loads(both[111]["result"]["content"][0]["text"]) if 111 in both else {}
+cancel_payload = json.loads(both[112]["result"]["content"][0]["text"]) if 112 in both else {}
+check("job_cancel wakes an in-flight job_wait", wait_payload.get("error_code") == "CANCELLED" and cancel_payload.get("status") == "cancelled", f"{wait_payload} / {cancel_payload}")
+check("job_cancel kills while job_wait is pending", wait_pid_gone(concurrent_pid), concurrent_pid)
+
+double, _, double_pid = launch_sleep(jp, jsend, "bitbake_recipe", "sleep-5", 120)
+double_id = double.get("job_id", 0)
+jsend({"jsonrpc":"2.0","id":121,"method":"tools/call","params":{"name":"job_cancel","arguments":{"job_id":double_id}}})
+jsend({"jsonrpc":"2.0","id":122,"method":"tools/call","params":{"name":"job_cancel","arguments":{"job_id":double_id}}})
+double_replies = recv_job_ids(jp, {121,122})
+double_payloads = [json.loads(double_replies[i]["result"]["content"][0]["text"]) for i in (121,122) if i in double_replies]
+check("back-to-back job_cancel calls both settle", len(double_payloads) == 2 and all(x.get("status") == "cancelled" for x in double_payloads) and wait_pid_gone(double_pid), str(double_payloads))
+
+finished_start, _, finished_pid = launch_sleep(jp, jsend, "bitbake_recipe", "sleep-1", 130)
+finished, _ = job_call(jp, jsend, "job_wait", {"job_id":finished_start.get("job_id"),"wait_secs":5}, 131)
+finished_again, _ = job_call(jp, jsend, "job_wait", {"job_id":finished_start.get("job_id"),"wait_secs":1}, 132)
+finished_cancel, _ = job_call(jp, jsend, "job_cancel", {"job_id":finished_start.get("job_id")}, 133)
+compare_a, compare_b = dict(finished), dict(finished_again)
+compare_a.pop("elapsed_ms", None); compare_b.pop("elapsed_ms", None)
+check("job_wait returns finished result with stable payload and run_ms", finished.get("status") == "finished" and finished.get("ok") is True and finished.get("exit_code") == 0 and finished.get("run_ms", 0) >= 1000 and compare_a == compare_b, str(finished))
+check("job_cancel on a finished job returns its stored result", finished_cancel.get("status") == "finished" and finished_cancel.get("run_ms") == finished.get("run_ms"), str(finished_cancel))
+
+missing, _ = job_call(jp, jsend, "job_wait", {"job_id":1,"wait_secs":1}, 134)
+bad0, bad0_raw = job_call(jp, jsend, "job_wait", {"job_id":1,"wait_secs":0}, 135)
+bad51, bad51_raw = job_call(jp, jsend, "job_wait", {"job_id":1,"wait_secs":51}, 136)
+badid, badid_raw = job_call(jp, jsend, "job_wait", {"job_id":"abc"}, 137)
+check("unknown job returns NOT_FOUND", missing.get("error_code") == "NOT_FOUND", str(missing))
+check("wait_secs 0/51 and malformed job id return INVALID_ARGUMENT", all(x.get("error_code") == "INVALID_ARGUMENT" for x in (bad0,bad51,badid)) and all(r.get("result",{}).get("isError") is True for r in (bad0_raw,bad51_raw,badid_raw)), f"{bad0} / {bad51} / {badid}")
+
+retained_ids = []
+for index in range(17):
+    result, _, _ = launch_sleep(jp, jsend, "bitbake_recipe", "sleep-0.4", 160 + index * 2)
+    retained_ids.append(result.get("job_id"))
+    completed, _ = job_call(jp, jsend, "job_wait", {"job_id":result.get("job_id"),"wait_secs":2}, 161 + index * 2)
+    if completed.get("status") != "finished": break
+oldest, _ = job_call(jp, jsend, "job_wait", {"job_id":retained_ids[0],"wait_secs":1}, 200)
+newest, _ = job_call(jp, jsend, "job_wait", {"job_id":retained_ids[-1],"wait_secs":1}, 201)
+check("finished jobs retain the newest 16 in FIFO order",
+      len(retained_ids) == 17 and oldest.get("error_code") == "NOT_FOUND"
+      and newest.get("status") == "finished", f"{oldest} / {newest}")
+
+# The server owns detached jobs across request cancellation, but not across its own exit.
+eof_result, _, eof_pid = launch_sleep(jp, jsend, "bitbake_recipe", "sleep-30", 140)
+eof_log = eof_result.get("log", "")
+jp.stdin.close()
+try: jp.wait(timeout=5)
+except subprocess.TimeoutExpired: jp.kill(); jp.wait(); check("stdin EOF aborts detached jobs before exit", False, "server did not exit")
+else: check("stdin EOF aborts detached jobs before exit", wait_pid_gone(eof_pid), eof_pid)
+check("stdin EOF removes detached job partial log", not eof_log or not os.path.exists(eof_log), eof_log)
+jp.stderr.read()
+
+sp, ssend = start_job_server()
+sig_result, _, sig_pid = launch_sleep(sp, ssend, "bitbake_recipe", "sleep-30", 150)
+sp.terminate()
+try: sp.wait(timeout=5)
+except subprocess.TimeoutExpired: sp.kill(); sp.wait(); check("SIGTERM aborts detached jobs before exit", False, "server did not exit")
+else: check("SIGTERM aborts detached jobs before exit", wait_pid_gone(sig_pid), sig_pid)
+check("SIGTERM removes detached job partial log", not sig_result.get("log") or not os.path.exists(sig_result["log"]), str(sig_result))
+sp.stderr.read()
 
 print()
 print("TOTAL FAILURES:", fail)

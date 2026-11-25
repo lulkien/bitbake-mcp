@@ -34,6 +34,15 @@ export PATH="{init_dir}:$PATH"
 _SHIM = """#!/bin/sh
 echo "{tag}{tool}-args:$*"
 echo "{tag}{tool}-cwd:$(pwd)"
+# `sleep-<n>` writes its pid for lifecycle tests and then blocks for n seconds.
+for a in "$@"; do
+  case "$a" in
+    sleep-*)
+      if [ -n "${{SHIM_PIDDIR:-}}" ]; then echo $$ > "$SHIM_PIDDIR/$a.pid"; fi
+      exec sleep "${{a#sleep-}}"
+      ;;
+  esac
+done
 # `flood` in the command line emits FLOOD_LINES stdout lines (default 200), so a
 # test can drive the over-cap path that sends output to the log file instead of
 # the result; `floodfail` additionally exits 3.

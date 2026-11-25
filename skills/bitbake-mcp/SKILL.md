@@ -12,7 +12,7 @@ metadata:
 
 # bitbake-mcp: BitBake/Yocto MCP server
 
-Sixteen MCP tools that run `bitbake`/`devtool` in a Yocto build directory and return
+Eighteen MCP tools that run and manage `bitbake`/`devtool` work in a Yocto build directory and return
 `{ok, exit_code, command, elapsed_ms, log, log_bytes}` plus `stdout`/`stderr`
 while those fit 2 KiB, and a `digest` (≤ 4 KiB) when they do not. **A build's
 full output is in the log file, not in the result** — the `digest` says what
@@ -72,12 +72,15 @@ explicitly when several build trees exist):
 | `devtool_upgrade` | `recipe`, `version?`, `srcrev?`, `srcbranch?`, `no_patch?` | upgrade a recipe in the workspace |
 | `devtool_update_recipe` | `recipe`, `mode?`, `append?` (absolute directory), `dry_run?`, `no_remove?` | write workspace changes to the original layer or an append layer; dry-run first |
 | `devtool_finish` | `recipe`, `destination` (layer name or absolute directory), `mode?`, `dry_run?`, `no_clean?` | write changes into a layer and remove the workspace entry; dry-run first |
+| `job_wait` | `job_id`, `wait_secs?` (1–50, default 50) | wait for a detached job; returns its final result or running status |
+| `job_cancel` | `job_id` | stop a detached job; destructive |
 
 ## Destructive tools
 
 The server marks `bitbake_recipe`, `devtool_build`, `devtool_reset`,
 `devtool_update_recipe`, `devtool_finish`, `devtool_deploy_target`, and
-`devtool_undeploy_target` as destructive in MCP metadata and their descriptions.
+`devtool_undeploy_target`, and `job_cancel` as destructive in MCP metadata and
+their descriptions.
 Annotations are hints; they do not enforce confirmation. Confirm with the user
 before running these tools. Use `dry_run: true` first where the tool supports it
 (`bitbake_recipe`, `devtool_update_recipe`, `devtool_finish`,
@@ -118,6 +121,16 @@ execution plan without running it; `continue_on_error: true` (`-k`) continues
 through independent build failures, and `dump_signatures: "printdiff"` (`-S`)
 helps explain why a task would rerun.
 
+**Wait for a long build.** A command still running after 50 seconds returns
+`status: "running"` and a `job_id`. Call `job_wait` with that id to wait up to
+50 seconds at a time; repeat while it returns `status: "running"`. Use
+`job_cancel` to stop the process group and remove its partial log. A client
+timeout before the initial call returns a job id cancels the command; after
+detachment, cancelling `job_wait` only cancels the wait. Once the initial call
+returns a job id, the server owns the build. `BUSY` means a detached job already
+runs in that canonical build directory: wait for it or cancel it rather than
+retrying the build. Server exit cancels all running jobs.
+
 ## Pitfalls
 
 - For still-unexposed subcommands such as `rename` or `extract`, use `terminal`
@@ -132,6 +145,8 @@ helps explain why a task would rerun.
   `$( )` and `;` are not interpreted, and a value containing shell
   metacharacters is rejected as `INVALID_ARGUMENT`. Do not work around a
   rejection by shelling out — split it into tool calls.
+- **Do not retry `BUSY`.** Use the returned `job_id` with `job_wait` or
+  `job_cancel`; only one detached job can run in a canonical build directory.
 - **Read `ok`, `exit_code` and `log` first — not the output.** A bitbake build's
   stdout is kilobytes of banner and sstate statistics, so it is not in the
   result: every call returns `log` (absolute path) and `log_bytes`, and

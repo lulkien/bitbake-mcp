@@ -46,7 +46,8 @@ npx skills add lulkien/bitbake-mcp -g -a claude-code codex hermes-agent -s bitba
 - Every tool result carries `elapsed_ms`: the wall-clock duration of that call
   in milliseconds, measured at the dispatch boundary. A `bitbake` build reports
   its own duration next to its output, and a rejected call still reports how
-  long the rejection took.
+  long the rejection took. Long commands can detach into a server-owned job;
+  see [Long builds and client timeouts](#long-builds-and-client-timeouts).
 
 ## Tools
 
@@ -55,7 +56,8 @@ Runs `bitbake` or `devtool` in a build directory:
 `devtool_build`, `devtool_build_image`, `devtool_reset`,
 `devtool_deploy_target`, `devtool_undeploy_target`, `devtool_search`,
 `devtool_find_recipe`, `devtool_check_upgrade_status`, `devtool_configure_help`,
-`devtool_add`, `devtool_upgrade`, `devtool_update_recipe`, `devtool_finish`
+`devtool_add`, `devtool_upgrade`, `devtool_update_recipe`, `devtool_finish`,
+`job_wait`, `job_cancel`
 
 Each tool is documented in full below.
 
@@ -80,10 +82,12 @@ one-time additive setup), including calls to tools marked read-only.
 | `devtool_update_recipe` | no | yes | no | no |
 | `devtool_finish` | no | yes | no | no |
 | `devtool_deploy_target`, `devtool_undeploy_target` | no | yes | yes | yes |
+| `job_wait` | yes | — | yes | no |
+| `job_cancel` | no | yes | yes | no |
 
 Claude Code does not use these hints for permission decisions; configure its
-MCP permission rules directly. Use `permissions.ask` for the seven destructive
-tools and `permissions.allow` only for the four read-only tools you choose to
+MCP permission rules directly. Use `permissions.ask` for the eight destructive
+tools and `permissions.allow` only for the five read-only tools you choose to
 trust. Claude
 Desktop uses annotations to group read-only tools, though its Auto mode may
 still prompt. Review each tool's description before calling it.
@@ -156,8 +160,18 @@ bitbake-mcp has no server-side command timeout. For multi-hour builds, raise
 the timeout in the MCP client that launches the server: Hermes uses the
 per-server `timeout` setting in **seconds**, Codex uses `tool_timeout_sec` in
 **seconds**, and Claude Code uses `MCP_TOOL_TIMEOUT` in **milliseconds**.
-A client timeout sends `notifications/cancelled`; bitbake-mcp terminates the
-running command's process group.
+A timeout on the initial command before detachment sends
+`notifications/cancelled` and terminates the command's process group. After 50
+seconds, a still-running command returns `ok:true`, `status:"running"`, a
+`job_id`, its command and build
+directory, plus its log path and current size when available. The process then
+belongs to the server and survives cancellation of that completed tool call.
+Cancelling a `job_wait` call cancels only the wait. Use `job_wait` to wait for
+completion or `job_cancel` to stop the build. Only one detached job can run per
+canonical build directory; another command there gets
+`BUSY` with the existing `job_id`. Finished jobs remain available until 16
+newer detached jobs finish. Running jobs are terminated and their partial logs
+removed when the server exits on stdin EOF, SIGINT, or SIGTERM.
 
 ## Tool reference
 
@@ -445,6 +459,28 @@ default applies.
 Other `bitbake` options such as `-e` and `-g` are not exposed. Signature
 diagnostics are limited to `-S none` and `-S printdiff`.
 
+### `job_wait`
+
+Wait for a detached command. `job_id` is required; `wait_secs` is optional and
+must be from 1 to 50 (default 50). A timeout returns `status:"running"`; a
+completed job returns its command result with `status:"finished"`, `job_id`,
+and `run_ms`. Cancelling the `job_wait` request leaves the job running.
+
+```json
+{ "job_id": 1790308139198, "wait_secs": 20 }
+```
+
+### `job_cancel`
+
+Stop a detached job and its whole process group. The tool waits for cleanup,
+including removal of the partial log, and returns `status:"cancelled"`. Calling
+it for a finished job returns that stored result; an unknown or evicted id is
+`NOT_FOUND`.
+
+```json
+{ "job_id": 1790308139198 }
+```
+
 ## Error format
 
 All errors return:
@@ -466,6 +502,11 @@ and the MCP result carries `isError: true` whenever the payload is `ok: false` �
 including a command that ran and failed. Two protocol-level cases return
 JSON-RPC errors instead: an unknown tool name (`-32602`) and a cancelled
 request.
+
+Detached-job errors use `BUSY` (a detached job already runs in that build
+directory; use its `job_id` with `job_wait` or `job_cancel`), `NOT_FOUND` (the
+id is unknown or evicted), and `CANCELLED` (`job_wait` observed a cancelled
+job). These payloads also set MCP `isError: true` when `ok:false`.
 
 ## Output logs
 
@@ -495,8 +536,9 @@ arrive ready to read while a build's banner and sstate statistics do not:
   note. A pipe read error stops that stream with a note naming the stream and
   bytes read, and marks `digest.incomplete` when a digest is present. `.err`
   files count toward the 200-file retention
-- **cancellation** — a cancelled request kills the command's whole process
-  group and leaves no log behind
+- **cancellation** — cancelling a command before it detaches kills its whole
+  process group and removes its partial log. After detachment, use `job_cancel`;
+  cancelling `job_wait` leaves the command running
 
 A failure is diagnosed from the log, not from the result: bitbake prints the
 failing command, the failed task's own log path and the exit code in it. Search
@@ -580,7 +622,7 @@ Uses `fern` + `log`. Logs are written to **stderr** so the MCP JSON-RPC stream o
 ## Layout
 
 - `src/main.rs` — entry wiring: logging, config, stdio serve
-- `src/tools/` — the sixteen tools: `mod.rs` (server type, tool declarations, run
+- `src/tools/` — the eighteen tools: `mod.rs` (server type, tool declarations, run
   path), `requests.rs` (request structs), `argv.rs` (argument building),
   `envelope.rs` (`ok` envelope, `elapsed_ms`), `handler.rs` (`ServerHandler`,
   call timing)

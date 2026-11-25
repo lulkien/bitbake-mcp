@@ -3,6 +3,7 @@
 use crate::validation;
 use rmcp::model::{CallToolResponse, ContentBlock};
 use serde_json::{Value, json};
+use std::path::Path;
 
 /// Build an `ok:false` result JSON (the standard error envelope).
 pub(super) fn error_result(error_code: &str, message: String) -> Value {
@@ -12,6 +13,77 @@ pub(super) fn error_result(error_code: &str, message: String) -> Value {
 /// Serialize a validation error into the `ok:false` content envelope.
 pub(super) fn validation_error(v: &validation::ValidationError) -> String {
     error_result(v.error_code, v.message.clone()).to_string()
+}
+
+pub(super) fn running_job(
+    id: u64,
+    command: &str,
+    build_dir: Option<&str>,
+    run_ms: u128,
+    log: Option<&Path>,
+    log_bytes: Option<u64>,
+) -> String {
+    let mut payload = json!({"ok":true,"status":"running","job_id":id,"run_ms":run_ms});
+    let object = payload.as_object_mut().expect("object envelope");
+    if let Some(build_dir) = build_dir {
+        object.insert("command".into(), json!(command));
+        object.insert("build_dir".into(), json!(build_dir));
+    }
+    if let Some(log) = log {
+        object.insert("log".into(), json!(log.to_string_lossy()));
+        if let Some(bytes) = log_bytes {
+            object.insert("log_bytes".into(), json!(bytes));
+        }
+    }
+    Value::Object(payload.as_object().cloned().unwrap_or_default()).to_string()
+}
+
+pub(super) fn finished_job(id: u64, done: &crate::jobs::Done) -> String {
+    if done.cancelled {
+        return json!({"ok":true,"status":"cancelled","job_id":id,
+            "command":done.command,"run_ms":done.run_ms})
+        .to_string();
+    }
+    let mut payload = serde_json::from_str::<Value>(&done.json).unwrap_or_else(|_| {
+        error_result("BUILD_FAILURE", "job result could not be decoded".into())
+    });
+    if let Value::Object(object) = &mut payload {
+        object.insert("status".into(), json!("finished"));
+        object.insert("job_id".into(), json!(id));
+        object.insert("run_ms".into(), json!(done.run_ms));
+    }
+    payload.to_string()
+}
+
+pub(super) fn cancelled_job_wait(id: u64, done: &crate::jobs::Done) -> String {
+    json!({"ok":false,"error_code":"CANCELLED",
+        "message":format!("job {id} was cancelled"),"status":"cancelled",
+        "job_id":id,"command":done.command,"run_ms":done.run_ms})
+    .to_string()
+}
+
+pub(super) fn busy_job(build_dir: &str, id: u64) -> String {
+    error_result(
+        "BUSY",
+        format!(
+            "build dir {build_dir} has running background job {id}; use job_wait or job_cancel"
+        ),
+    )
+    .as_object()
+    .map(|object| {
+        let mut object = object.clone();
+        object.insert("job_id".into(), json!(id));
+        Value::Object(object).to_string()
+    })
+    .unwrap_or_default()
+}
+
+pub(super) fn missing_job(id: u64) -> String {
+    error_result(
+        "NOT_FOUND",
+        format!("no job {id} (unknown, or evicted after 16 newer finished jobs)"),
+    )
+    .to_string()
 }
 
 /// Fold the wall-clock duration of a tool call into its result payload, and

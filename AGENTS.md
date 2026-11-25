@@ -1,7 +1,7 @@
 # bitbake-mcp — agent instructions
 
 Rust MCP server (rmcp + tokio) that runs `bitbake` and `devtool` in a Yocto
-build directory, exposed as 16 MCP tools over stdio.
+build directory, exposed as 18 MCP tools over stdio.
 
 `README.md` is the human-facing contract: config, every tool, flags, error
 format, layout, tests. This file is the operational path — what an agent does,
@@ -18,7 +18,7 @@ in order.
 Done when all three hold:
 
 1. `command -v bitbake-mcp` prints a path.
-2. The probe below prints `16 tools: ...`.
+2. The probe below prints `18 tools: ...`.
 3. Steps 3 and 5 are done: the config file exists, and the usage skill is
    installed with the `skills` CLI (or copied manually on machines without
    Node/bun).
@@ -62,7 +62,7 @@ just produced:
 python3 test_exec.py && python3 test_config.py   # exit 0, "TOTAL FAILURES: 0"
 ```
 
-Prove the installed binary speaks MCP and exposes all 16 tools:
+Prove the installed binary speaks MCP and exposes all 18 tools:
 
 ```bash
 python3 - <<'PY'
@@ -144,7 +144,7 @@ command group.
 Verify with the client, then restart it if it caches tools:
 
 ```bash
-hermes mcp test bitbake-mcp     # "Connected" + "Tools discovered: 16"
+hermes mcp test bitbake-mcp     # "Connected" + "Tools discovered: 18"
 ```
 
 ### 5. Install the usage skill
@@ -176,11 +176,12 @@ already loaded its skill index.
 |---|---|
 | Entry wiring (logging, config, serve) | `src/main.rs` |
 | Tool declarations, run path | `src/tools/mod.rs` |
+| Server-owned detached command jobs | `src/jobs.rs` |
 | MCP tool annotations and model-facing safety descriptions | Each `#[tool]` in `src/tools/mod.rs`; keep `test_exec.py`'s expected tools/list annotations table in sync |
 | Request structs, argv building, `ok` envelope, call timing | `src/tools/{requests,argv,envelope,handler}.rs` |
 | Trust-boundary validation (recipe, target, task) | `src/validation.rs` |
 | Process launch (direct argv, or `bash -c "source <init> .; ..."`), kill | `src/exec/{mod,spawn}.rs` |
-| Output logs, result envelope | `src/exec/{log,envelope}.rs` |
+| Output logs, result envelope, in-flight prune protection | `src/exec/{log,envelope}.rs` |
 | Result `digest` (classes, failure state machine, caps) | `src/digest/` (`classify`, `failure`, `caps`) |
 | Config load/discovery | `src/config.rs` |
 
@@ -214,6 +215,15 @@ Invariants — keep every one:
   unflushed last chunk would fail silently. A pipe read error also adds a note
   naming the stream and bytes read; `digest.incomplete` is set when a digest is
   present. Interrupted reads are retried.
+- Commands still running after `DETACH_AFTER` (50 seconds by default) become
+  server-owned jobs exposed by `job_wait` and `job_cancel`. Only detached
+  running jobs block another command for the same canonical `build_dir` with
+  `BUSY`; finished jobs are retained FIFO up to 16. Jobs are aborted on stdin
+  EOF, SIGINT or SIGTERM. `BITBAKE_MCP_DETACH_AFTER_MS` is a test-only override.
+  Cancelling a `job_wait` request leaves its job running; use `job_cancel` to
+  stop a detached job.
+- Log paths in progress are tracked under `ExecContext`'s live-log lock. Pruning
+  holds that lock and never removes an in-flight `.log` or `.err` file.
 - Every payload is `ok`-shaped: `call_tool` wraps rmcp's deserialization errors
   into `ok:false` + `elapsed_ms`, and sets `isError` when `ok` is false.
 - The digest is derived, never a replacement: `src/digest/` builds it from

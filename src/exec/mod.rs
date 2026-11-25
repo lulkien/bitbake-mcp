@@ -22,9 +22,13 @@ mod log;
 mod spawn;
 
 use crate::digest::{CommandKind, DigestBuilder};
-use log::{LOG_KEEP, LogGuard, drain, finish_log, inline, open_log, prune_logs, read_notes};
+use log::{LOG_KEEP, drain, finish_log, inline, open_log, prune_logs, read_notes};
 use spawn::GroupKill;
-use std::path::PathBuf;
+use std::{
+    collections::BTreeSet,
+    path::PathBuf,
+    sync::{Arc, Mutex, OnceLock},
+};
 
 pub use envelope::ExecResult;
 use envelope::build_failure;
@@ -47,6 +51,9 @@ pub struct ExecContext {
     /// Directory the complete output of every executed command is written to.
     /// Empty means "no log file": results then carry their output inline.
     pub log_dir: PathBuf,
+    /// Log paths currently being written; pruning holds this lock while
+    /// selecting and deleting old files.
+    pub live_logs: Arc<Mutex<BTreeSet<PathBuf>>>,
 }
 
 /// Run `program` with `args` in `cwd`.
@@ -65,9 +72,16 @@ pub async fn run(
     args: &[String],
     cwd: &str,
     kind: CommandKind,
+    log_slot: &OnceLock<PathBuf>,
 ) -> ExecResult {
-    let (cmd, command, command_line) = spawn::command(ctx.init_script.as_deref(), program, args, cwd);
-    run_child(cmd, &command, &command_line, ctx, cwd, kind).await
+    let (cmd, command, command_line) =
+        spawn::command(ctx.init_script.as_deref(), program, args, cwd);
+    run_child(cmd, &command, &command_line, ctx, cwd, kind, log_slot).await
+}
+
+/// Format the exact command display string without spawning a child.
+pub fn display_command(ctx: &ExecContext, program: &str, args: &[String], cwd: &str) -> String {
+    spawn::command(ctx.init_script.as_deref(), program, args, cwd).1
 }
 
 async fn run_child(
@@ -77,6 +91,7 @@ async fn run_child(
     ctx: &ExecContext,
     cwd: &str,
     kind: CommandKind,
+    log_slot: &OnceLock<PathBuf>,
 ) -> ExecResult {
     let mut child = match cmd.spawn() {
         Ok(c) => c,
@@ -90,6 +105,9 @@ async fn run_child(
     // appended after it, so the log keeps its stdout-then-stderr layout while
     // neither stream is ever held whole in memory.
     let mut log = open_log(ctx, name, command, cwd).await;
+    if let Some(l) = &log {
+        let _ = log_slot.set(l.path.clone());
+    }
     let mut err_path = PathBuf::new();
     let mut err_sink = None;
     if let Some(l) = &log {
@@ -107,11 +125,11 @@ async fn run_child(
             }
         }
     }
-    let mut guard = LogGuard { paths: Vec::new() };
-    if let Some(l) = &log {
-        guard.paths = vec![l.path.clone(), err_path.clone()];
-    }
-    let head_cap = if log.is_some() { INLINE_CAP + 1 } else { usize::MAX };
+    let head_cap = if log.is_some() {
+        INLINE_CAP + 1
+    } else {
+        usize::MAX
+    };
     let out_sink = log.as_mut().and_then(|l| l.file.take());
 
     let mut group = GroupKill(child.id().map(|pid| pid as i32));
@@ -127,10 +145,6 @@ async fn run_child(
     let status = match status {
         Ok(s) => s,
         Err(e) => {
-            if let Some(l) = &log {
-                let _ = tokio::fs::remove_file(&l.path).await;
-                let _ = tokio::fs::remove_file(&err_path).await;
-            }
             return build_failure(format!("failed to read output: {e}"), command.to_string());
         }
     };
@@ -177,14 +191,22 @@ async fn run_child(
         }
         let size = match size {
             Some(n) => n,
-            None => tokio::fs::metadata(&l.path).await.map(|m| m.len()).unwrap_or(0),
+            None => tokio::fs::metadata(&l.path)
+                .await
+                .map(|m| m.len())
+                .unwrap_or(0),
         };
         // The digest reads only the `.log`, never the `.err`: on success the
         // log already holds stderr, and an incomplete log names the kept
         // `.err` instead of mixing in bytes the log may partly hold.
         let dir = ctx.log_dir.clone();
         let log_path = l.path.clone();
+        if let Some(guard) = &mut l.cleanup {
+            guard.paths.clear();
+        }
+        drop(l.live.take());
         let incomplete = !note.is_empty();
+        let live_logs = ctx.live_logs.clone();
         digest = tokio::task::spawn_blocking(move || {
             let d = want_digest
                 .then(|| {
@@ -196,7 +218,7 @@ async fn run_child(
                     Some(b.finish(exit_code))
                 })
                 .flatten();
-            prune_logs(&dir, LOG_KEEP);
+            prune_logs(&dir, LOG_KEEP, &live_logs);
             d
         })
         .await
@@ -223,11 +245,13 @@ async fn run_child(
     }
     // The log stays, and so does a stderr scratch file that holds the only
     // complete copy: the guard is for cancellation only.
-    guard.paths.clear();
     let mut stderr = inline(&err, err_in_log, INLINE_CAP);
     if !note.is_empty() {
         let incomplete_thing = if logged.is_some() { "log" } else { "output" };
-        let n = format!("\n[bitbake-mcp: {}the {incomplete_thing} is incomplete]\n", note);
+        let n = format!(
+            "\n[bitbake-mcp: {}the {incomplete_thing} is incomplete]\n",
+            note
+        );
         stderr.get_or_insert_with(String::new).push_str(&n);
     }
     ExecResult {

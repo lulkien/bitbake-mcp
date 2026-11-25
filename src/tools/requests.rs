@@ -1,4 +1,4 @@
-//! Request payloads of the sixteen tools. Required arguments are declared as
+//! Request payloads of the eighteen tools. Required arguments are declared as
 //! such so the tool schema says so; a missing or wrongly typed argument fails
 //! deserialization before a handler runs.
 
@@ -263,4 +263,18 @@ pub(super) struct BitbakeRecipeReq {
     pub(super) dump_signatures: Option<DumpSignatures>,
     #[serde(default)]
     pub(super) build_dir: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct JobWaitReq {
+    pub(super) job_id: u64,
+    /// Maximum time to wait, in seconds (1–50). Defaults to 50.
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 50))]
+    pub(super) wait_secs: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(super) struct JobCancelReq {
+    pub(super) job_id: u64,
 }

@@ -1,4 +1,4 @@
-//! The sixteen tools: the server type, its tool declarations, and the shared
+//! The eighteen tools: the server type, its tool declarations, and the shared
 //! "resolve cwd, run, serialize" path every tool ends in.
 
 mod argv;
@@ -6,17 +6,25 @@ mod envelope;
 mod handler;
 mod requests;
 
+use crate::jobs::{self, JobStatus, JobTable};
 use crate::{config, digest, exec, validation};
-use envelope::validation_error;
+use envelope::{
+    busy_job, cancelled_job_wait, finished_job, missing_job, running_job, validation_error,
+};
 use requests::{
     BitbakeRecipeReq, BuildDirReq, DeployTargetReq, DevtoolAddReq, DevtoolBuildImageReq,
     DevtoolBuildReq, DevtoolCheckUpgradeStatusReq, DevtoolFinishReq, DevtoolModifyReq,
     DevtoolRecipeReq, DevtoolResetReq, DevtoolSearchReq, DevtoolUndeployTargetReq,
-    DevtoolUpdateRecipeReq, DevtoolUpgradeReq,
+    DevtoolUpdateRecipeReq, DevtoolUpgradeReq, JobCancelReq, JobWaitReq,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     tool, tool_router,
+};
+use std::{
+    path::PathBuf,
+    sync::{Arc, OnceLock},
+    time::Duration,
 };
 
 #[derive(Debug, Clone)]
@@ -26,6 +34,8 @@ pub(crate) struct BitBakeServer {
     /// Default build directory from config; used when a tool call omits
     /// `build_dir`.
     default_build_dir: String,
+    jobs: JobTable,
+    detach_after: Duration,
 }
 
 impl BitBakeServer {
@@ -44,9 +54,21 @@ impl BitBakeServer {
             exec_ctx: exec::ExecContext {
                 init_script: cfg.init_script.clone(),
                 log_dir: config::default_log_dir(),
+                live_logs: Default::default(),
             },
             default_build_dir,
+            jobs: JobTable::default(),
+            detach_after: Duration::from_millis(
+                std::env::var("BITBAKE_MCP_DETACH_AFTER_MS")
+                    .ok()
+                    .and_then(|value| value.parse().ok())
+                    .unwrap_or(jobs::DETACH_AFTER_MS),
+            ),
         }
+    }
+
+    pub(crate) fn jobs(&self) -> JobTable {
+        self.jobs.clone()
     }
 
     /// Resolve the effective working directory for a build command.
@@ -73,9 +95,66 @@ impl BitBakeServer {
         if let Err(v) = validation::validate_build_dir(&cwd) {
             return validation_error(&v);
         }
+        let key = tokio::fs::canonicalize(&cwd)
+            .await
+            .unwrap_or_else(|_| PathBuf::from(&cwd));
         let kind = digest::CommandKind::of(program, &args);
-        let res = exec::run(&self.exec_ctx, program, &args, &cwd, kind).await;
-        serde_json::to_string(&res).unwrap_or_default()
+        let command = exec::display_command(&self.exec_ctx, program, &args, &cwd);
+        let log = Arc::new(OnceLock::new());
+        let ctx = self.exec_ctx.clone();
+        let program_owned = program.to_string();
+        let cwd_owned = cwd.clone();
+        let args_owned = args.clone();
+        let task_log = log.clone();
+        let started = match self
+            .jobs
+            .start(key, cwd.clone(), command.clone(), log, async move {
+                exec::run(
+                    &ctx,
+                    &program_owned,
+                    &args_owned,
+                    &cwd_owned,
+                    kind,
+                    &task_log,
+                )
+                .await
+            }) {
+            Ok(started) => started,
+            Err(id) => return busy_job(&cwd, id),
+        };
+        let jobs = self.jobs.clone();
+        let jobs_id = started.id;
+        let mut done_rx = started.done;
+        let completed = tokio::time::timeout(self.detach_after, done_rx.wait_for(Option::is_some))
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .and_then(|value| value.as_ref().cloned());
+        if let Some(done) = completed {
+            started.guard.disarm();
+            jobs.remove(jobs_id);
+            if done.cancelled {
+                cancelled_job_wait(jobs_id, &done)
+            } else {
+                done.json.clone()
+            }
+        } else {
+            jobs.mark_detached(jobs_id);
+            let path = started.log.get();
+            let bytes = match path {
+                Some(path) => tokio::fs::metadata(path).await.ok().map(|m| m.len()),
+                None => None,
+            };
+            started.guard.disarm();
+            running_job(
+                jobs_id,
+                &started.command,
+                Some(&started.build_dir),
+                started.started.elapsed().as_millis(),
+                path.map(PathBuf::as_path),
+                bytes,
+            )
+        }
     }
 
     /// Validate `recipe` and invoke `program` with `argv` followed by the
@@ -101,7 +180,11 @@ impl BitBakeServer {
     /// Add a recipe from a fetch URI into the workspace.
     #[tool(
         description = "Run 'devtool add [-V version] [-S rev | -a] [-B branch] <recipe> <uri>'. Writes only to the workspace layer and workspace/sources/.",
-        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
+        annotations(
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
     )]
     async fn devtool_add(
         &self,
@@ -150,7 +233,11 @@ impl BitBakeServer {
     /// Upgrade a workspace recipe in place.
     #[tool(
         description = "Run 'devtool upgrade [-V version] [-S rev] [-B branch] [--no-patch] <recipe>'. Writes only to the workspace layer and workspace/sources/.",
-        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
+        annotations(
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
     )]
     async fn devtool_upgrade(
         &self,
@@ -189,7 +276,11 @@ impl BitBakeServer {
     /// Write workspace changes back to the original recipe layer or append layer.
     #[tool(
         description = "Run 'devtool update-recipe [-m mode] [-a layer] [-N] [-n] <recipe>'. Writes committed workspace changes to the original recipe's layer, or a bbappend in append; run with dry_run=true first to preview changes. Destructive: rewrites recipe files and may remove obsolete patches.",
-        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = false)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
     )]
     async fn devtool_update_recipe(
         &self,
@@ -216,7 +307,11 @@ impl BitBakeServer {
     /// Move a workspace recipe into a layer and remove its workspace entry.
     #[tool(
         description = "Run 'devtool finish [-m mode] [-N] [-n] <recipe> <destination>'. Writes the recipe changes into destination and removes the recipe from the workspace; run with dry_run=true first to preview changes. Destructive: writes to the destination layer and removes the workspace entry.",
-        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = false)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
     )]
     async fn devtool_finish(
         &self,
@@ -292,7 +387,11 @@ impl BitBakeServer {
     /// Print configure options without invoking a pager.
     #[tool(
         description = "Run 'devtool configure-help -p <recipe>' to print configure options for a workspace recipe. The -p flag always disables the pager.",
-        annotations(destructive_hint = false, idempotent_hint = true, open_world_hint = true)
+        annotations(
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
     )]
     async fn devtool_configure_help(
         &self,
@@ -305,7 +404,11 @@ impl BitBakeServer {
     /// Run `devtool modify [--debug-build] <recipe>` in the build directory.
     #[tool(
         description = "Run 'devtool modify <recipe>' in the build directory to start modifying a recipe. Set debug_build=true to pass --debug-build and enable DEBUG_BUILD=1 in the workspace append for on-target debugging.",
-        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
+        annotations(
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
     )]
     async fn devtool_modify(
         &self,
@@ -322,7 +425,11 @@ impl BitBakeServer {
     /// Run `devtool build [-c] [-s] <recipe>` in the build directory.
     #[tool(
         description = "Run 'devtool build <recipe>' in the build directory to build a recipe. Set clean=true to pass -c (clean up the recipe's build results first); set disable_parallel_make=true to pass -s and disable parallel make. Destructive: clean=true removes the recipe's build results.",
-        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = true)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
     )]
     async fn devtool_build(
         &self,
@@ -341,7 +448,11 @@ impl BitBakeServer {
     /// Build an image with optional extra workspace packages.
     #[tool(
         description = "Run 'devtool build-image [-p <packages>] <image>' in the build directory. image is required; add_packages is a comma-separated list of recipe names passed to -p.",
-        annotations(destructive_hint = false, idempotent_hint = false, open_world_hint = true)
+        annotations(
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
     )]
     async fn devtool_build_image(
         &self,
@@ -375,7 +486,11 @@ impl BitBakeServer {
     /// Run `devtool reset [-n] <recipe>` in the build directory.
     #[tool(
         description = "Run 'devtool reset <recipe>' to undo a devtool modify. Passes -n unless no_clean=false, i.e. the recipe's sysroot output is not cleaned by default. Destructive: removes the recipe from the workspace and can clean its sysroot output.",
-        annotations(destructive_hint = true, idempotent_hint = true, open_world_hint = false)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
     )]
     async fn devtool_reset(
         &self,
@@ -393,7 +508,11 @@ impl BitBakeServer {
     /// Run bitbake for a recipe or task in the build directory.
     #[tool(
         description = "Run 'bitbake [-f] [-c <task>] [-C <task>] [--runall <task>] [--runonly <task>] [--no-setscene|--skip-setscene|--setscene-only] [-k] [-n] [-S none|printdiff] <recipe>' in the build directory. Omit task to run the recipe's default task; task='listtasks' lists available tasks. continue_on_error=true adds -k; dry_run=true adds -n; dump_signatures selects the -S signature diagnostic. Destructive: tasks such as cleansstate or cleanall remove sstate or downloads; use dry_run=true first.",
-        annotations(destructive_hint = true, idempotent_hint = false, open_world_hint = true)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
     )]
     async fn bitbake_recipe(
         &self,
@@ -438,7 +557,11 @@ impl BitBakeServer {
     /// Run `devtool deploy-target` in the build directory.
     #[tool(
         description = "Run 'devtool deploy-target <recipe> <user@host>' to deploy a recipe to a remote target. Optional flags: strip=true adds -S (default false: --no-strip); no_host_check (-c, default true), dry_run (-n, default false), no_preserve (-p, default true), no_check_space (--no-check-space, default true) each pass their flag unless set to false; port sets -P (default 22). Destructive: overwrites files on the remote target; use dry_run=true first.",
-        annotations(destructive_hint = true, idempotent_hint = true, open_world_hint = true)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
     )]
     async fn devtool_deploy_target(
         &self,
@@ -483,7 +606,11 @@ impl BitBakeServer {
     /// Remove a recipe's deployed files from a target, or all deployed files.
     #[tool(
         description = "Run 'devtool undeploy-target [-c] [-a] [-n] -P <port> [<recipe>] <user@host>' to remove previously deployed files from a target. Set exactly one of recipe or all=true; all=true removes every recipe previously deployed to that target. no_host_check defaults to true; dry_run=true lists files without removing them; port defaults to 22. Destructive: deletes deployed files from the remote target; use dry_run=true first.",
-        annotations(destructive_hint = true, idempotent_hint = true, open_world_hint = true)
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
     )]
     async fn devtool_undeploy_target(
         &self,
@@ -510,5 +637,65 @@ impl BitBakeServer {
         }
         let args = argv::undeploy_target(recipe, all, target, no_host_check, dry_run, port);
         self.run_cmd("devtool", args, build_dir).await
+    }
+
+    /// Wait briefly for a detached BitBake/devtool job and return its result.
+    #[tool(
+        description = "Wait up to wait_secs (default 50, maximum 50) for a background job, then return its final result or status running. Read-only: never changes the job.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn job_wait(
+        &self,
+        Parameters(JobWaitReq { job_id, wait_secs }): Parameters<JobWaitReq>,
+    ) -> String {
+        if let Some(seconds) = wait_secs.filter(|seconds| !(1..=50).contains(seconds)) {
+            return envelope::error_result(
+                "INVALID_ARGUMENT",
+                format!("wait_secs must be between 1 and 50; got {seconds}"),
+            )
+            .to_string();
+        }
+        match self
+            .jobs
+            .wait(job_id, Duration::from_secs(wait_secs.unwrap_or(50)))
+            .await
+        {
+            None => missing_job(job_id),
+            Some(JobStatus::Finished(done)) if done.cancelled => cancelled_job_wait(job_id, &done),
+            Some(JobStatus::Finished(done)) => finished_job(job_id, &done),
+            Some(JobStatus::Running(info)) => {
+                let bytes = match &info.log {
+                    Some(path) => tokio::fs::metadata(path).await.ok().map(|m| m.len()),
+                    None => None,
+                };
+                running_job(
+                    info.id,
+                    &info.command,
+                    Some(&info.build_dir),
+                    info.run_ms,
+                    info.log.as_deref(),
+                    bytes,
+                )
+            }
+        }
+    }
+
+    /// Cancel a running detached job and kill its whole process group.
+    #[tool(
+        description = "Stop a running background job and its whole process group; its partial log is removed. A finished job returns its stored result unchanged. Destructive: kills the running BitBake/devtool command.",
+        annotations(
+            destructive_hint = true,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn job_cancel(
+        &self,
+        Parameters(JobCancelReq { job_id }): Parameters<JobCancelReq>,
+    ) -> String {
+        match self.jobs.cancel(job_id).await {
+            Some(done) => finished_job(job_id, &done),
+            None => missing_job(job_id),
+        }
     }
 }

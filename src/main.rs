@@ -1,6 +1,6 @@
 //! Deterministic BitBake/Yocto build MCP server.
 //!
-//! Sixteen tools, each running `bitbake` or `devtool` in a build directory.
+//! Eighteen tools for running and managing `bitbake`/`devtool` jobs.
 //! Every tool response — success and error alike — is a structured
 //! `ok:true/false` JSON text block that also carries `elapsed_ms`, the
 //! wall-clock duration of that call, folded in at the dispatch boundary
@@ -14,6 +14,7 @@
 mod config;
 mod digest;
 mod exec;
+mod jobs;
 mod tools;
 mod validation;
 
@@ -74,10 +75,38 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let server = BitBakeServer::new(cfg);
-    server
-        .serve(rmcp::transport::stdio())
-        .await?
-        .waiting()
-        .await?;
+    let jobs = server.jobs();
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    let service = server.serve(rmcp::transport::stdio()).await?;
+    let cancellation = service.cancellation_token();
+    let mut waiting = tokio::spawn(service.waiting());
+    let ended = tokio::select! {
+        result = &mut waiting => Some(result),
+        _ = tokio::signal::ctrl_c() => None,
+        _ = terminate.recv() => None,
+    };
+    let signaled = ended.is_none();
+    let service_result: anyhow::Result<()> = match ended {
+        Some(Ok(Ok(_))) => Ok(()),
+        Some(Ok(Err(error))) => Err(error.into()),
+        Some(Err(error)) => Err(error.into()),
+        None => {
+            cancellation.cancel();
+            match waiting.await {
+                Ok(Ok(_)) => Ok(()),
+                Ok(Err(error)) => Err(error.into()),
+                Err(error) => Err(error.into()),
+            }
+        }
+    };
+    jobs.shutdown().await;
+    service_result?;
+    if signaled {
+        // Tokio's stdin reader uses a blocking worker that cannot be interrupted
+        // while the client keeps stdin open. All service and job cleanup is
+        // complete here, so exit instead of waiting for that reader on runtime
+        // teardown.
+        std::process::exit(0);
+    }
     Ok(())
 }
